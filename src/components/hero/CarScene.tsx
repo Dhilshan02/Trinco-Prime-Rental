@@ -140,6 +140,17 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
             const m = child as THREE.Mesh;
             m.castShadow = true;
             m.receiveShadow = true;
+            if (m.material) {
+              const mats = Array.isArray(m.material) ? m.material : [m.material];
+              mats.forEach((mat) => {
+                if ((mat as THREE.MeshStandardMaterial).isMeshStandardMaterial) {
+                  const sm = mat as THREE.MeshStandardMaterial;
+                  sm.roughness = Math.max(sm.roughness * 0.85, 0.2);
+                  sm.metalness = Math.min(sm.metalness * 1.15, 0.9);
+                  sm.needsUpdate = true;
+                }
+              });
+            }
           }
         });
 

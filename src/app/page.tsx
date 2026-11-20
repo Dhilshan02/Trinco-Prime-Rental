@@ -13,9 +13,28 @@ import { FLEET } from "@/lib/fleet";
 
 export default function Home() {
   const [selectedVehicleId, setSelectedVehicleId] = useState(FLEET[0].id);
+  const [searchCriteria, setSearchCriteria] = useState<{
+    vehicleType?: string;
+    location?: string;
+    rentalDate?: string;
+    pickupTime?: string;
+  } | null>(null);
 
   const handleSelectVehicle = (vehicleId: string) => {
     setSelectedVehicleId(vehicleId);
+    const bookingSection = document.getElementById("booking");
+    if (bookingSection) {
+      bookingSection.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
+  const handleHeroSearch = (criteria: {
+    vehicleType: string;
+    location: string;
+    rentalDate: string;
+    pickupTime: string;
+  }) => {
+    setSearchCriteria(criteria);
     const bookingSection = document.getElementById("booking");
     if (bookingSection) {
       bookingSection.scrollIntoView({ behavior: "smooth" });
@@ -28,7 +47,7 @@ export default function Home() {
       <Navbar />
 
       {/* 1. Hero Section with 3D Vezel intro */}
-      <Hero />
+      <Hero onSearch={handleHeroSearch} />
 
       {/* 2. Fleet Section with filters */}
       <Fleet onSelectVehicle={handleSelectVehicle} />
@@ -40,6 +59,7 @@ export default function Home() {
       <BookingForm
         selectedVehicleId={selectedVehicleId}
         onVehicleChange={setSelectedVehicleId}
+        searchCriteria={searchCriteria}
       />
 
       {/* 5. Guest Reviews */}

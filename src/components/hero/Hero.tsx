@@ -20,15 +20,31 @@ const CarScene = dynamic(() => import("./CarScene"), {
   ),
 });
 
-export default function Hero() {
+interface HeroProps {
+  onSearch?: (criteria: {
+    vehicleType: string;
+    location: string;
+    rentalDate: string;
+    pickupTime: string;
+  }) => void;
+}
+
+export default function Hero({ onSearch }: HeroProps) {
   const textRef = useRef<HTMLDivElement>(null);
   const carGroupRef = useRef<THREE.Group | null>(null);
   const [animationStarted, setAnimationStarted] = useState(false);
 
+  // Dynamic tomorrow date helper
+  const getTomorrowDate = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split("T")[0];
+  };
+
   // Quick search form state
   const [vehicleType, setVehicleType] = useState("Cars");
   const [location, setLocation] = useState("Nilaveli Beach Resort Area");
-  const [rentalDate, setRentalDate] = useState("2025-03-01");
+  const [rentalDate, setRentalDate] = useState(getTomorrowDate());
   const [pickupTime, setPickupTime] = useState("09:00");
 
   const startIntroTimeline = () => {
@@ -128,9 +144,13 @@ export default function Hero() {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const target = document.getElementById("fleet");
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth" });
+    if (onSearch) {
+      onSearch({ vehicleType, location, rentalDate, pickupTime });
+    } else {
+      const target = document.getElementById("fleet");
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth" });
+      }
     }
   };
 

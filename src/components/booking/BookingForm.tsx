@@ -26,13 +26,28 @@ import {
 interface BookingFormProps {
   selectedVehicleId: string;
   onVehicleChange: (id: string) => void;
+  searchCriteria?: {
+    vehicleType?: string;
+    location?: string;
+    rentalDate?: string;
+    pickupTime?: string;
+  } | null;
 }
 
 export default function BookingForm({
   selectedVehicleId,
   onVehicleChange,
+  searchCriteria,
 }: BookingFormProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
+
+  // Helper for dynamic dates
+  const getTodayStr = () => new Date().toISOString().split("T")[0];
+  const getFutureStr = (daysAhead: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + daysAhead);
+    return d.toISOString().split("T")[0];
+  };
 
   // Form Fields
   const [vehicleType, setVehicleType] = useState<"cars" | "vans" | "tuktuks" | "bikes">("cars");
@@ -40,9 +55,9 @@ export default function BookingForm({
   const [driverOption, setDriverOption] = useState<"with_driver" | "self_drive">("with_driver");
   const [pickupLocation, setPickupLocation] = useState("Nilaveli Beach Resort Area");
   const [dropoffLocation, setDropoffLocation] = useState("Nilaveli Beach Resort Area");
-  const [pickupDate, setPickupDate] = useState("2025-03-01");
+  const [pickupDate, setPickupDate] = useState(getFutureStr(1));
   const [pickupTime, setPickupTime] = useState("09:00");
-  const [returnDate, setReturnDate] = useState("2025-03-05");
+  const [returnDate, setReturnDate] = useState(getFutureStr(3));
   const [returnTime, setReturnTime] = useState("09:00");
   const [passengers, setPassengers] = useState("2 Passengers");
   const [airportPickup, setAirportPickup] = useState(false);
@@ -67,6 +82,43 @@ export default function BookingForm({
       if (vehicle) setVehicleType(vehicle.category);
     }
   }, [selectedVehicleId]);
+
+  // Sync when search criteria changes from Hero quick search
+  useEffect(() => {
+    if (searchCriteria) {
+      if (searchCriteria.location) {
+        setPickupLocation(searchCriteria.location);
+        setDropoffLocation(searchCriteria.location);
+      }
+      if (searchCriteria.rentalDate) {
+        setPickupDate(searchCriteria.rentalDate);
+        // set return date to at least 2 days after
+        const pDate = new Date(searchCriteria.rentalDate);
+        pDate.setDate(pDate.getDate() + 2);
+        setReturnDate(pDate.toISOString().split("T")[0]);
+      }
+      if (searchCriteria.pickupTime) {
+        setPickupTime(searchCriteria.pickupTime);
+      }
+      if (searchCriteria.vehicleType) {
+        const typeMap: Record<string, "cars" | "vans" | "tuktuks" | "bikes"> = {
+          Cars: "cars",
+          Vans: "vans",
+          "Tuk-Tuks": "tuktuks",
+          Bikes: "bikes",
+        };
+        const mapped = typeMap[searchCriteria.vehicleType];
+        if (mapped) {
+          setVehicleType(mapped);
+          const first = FLEET.find((v) => v.category === mapped);
+          if (first) {
+            setVehicleId(first.id);
+            onVehicleChange(first.id);
+          }
+        }
+      }
+    }
+  }, [searchCriteria, onVehicleChange]);
 
   const currentVehicle = FLEET.find((v) => v.id === vehicleId) || FLEET[0];
 
@@ -447,7 +499,14 @@ export default function BookingForm({
                           <input
                             type="date"
                             value={pickupDate}
-                            onChange={(e) => setPickupDate(e.target.value)}
+                            min={getTodayStr()}
+                            onChange={(e) => {
+                              const newPickup = e.target.value;
+                              setPickupDate(newPickup);
+                              if (returnDate < newPickup) {
+                                setReturnDate(newPickup);
+                              }
+                            }}
                             required
                             className="w-2/3 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-medium"
                           />
@@ -469,6 +528,7 @@ export default function BookingForm({
                           <input
                             type="date"
                             value={returnDate}
+                            min={pickupDate || getTodayStr()}
                             onChange={(e) => setReturnDate(e.target.value)}
                             required
                             className="w-2/3 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-medium"
