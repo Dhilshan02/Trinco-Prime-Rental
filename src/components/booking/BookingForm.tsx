@@ -217,16 +217,6 @@ export default function BookingForm({
     }
   };
 
-  const locationOptions = [
-    "Nilaveli Beach Resort Area",
-    "Uppuveli Beach Hotel Strip",
-    "Trincomalee Town / Railway Station",
-    "China Bay Airport (TRR)",
-    "Marble Beach Resort",
-    "Koneswaram Temple Area",
-    "Custom Hotel / Villa Delivery",
-  ];
-
   return (
     <section id="booking" className="py-20 lg:py-28 relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -449,43 +439,6 @@ export default function BookingForm({
                             Requires valid IDP or SL Permit
                           </p>
                         </div>
-                      </div>
-                    </div>
-
-                    {/* Pickup & Drop-off Locations */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-2">
-                          PICK-UP LOCATION
-                        </label>
-                        <select
-                          value={pickupLocation}
-                          onChange={(e) => setPickupLocation(e.target.value)}
-                          className="w-full px-3.5 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-medium focus:outline-none focus:border-emerald-500 cursor-pointer"
-                        >
-                          {locationOptions.map((loc) => (
-                            <option key={loc} value={loc} className="bg-[#0f141c]">
-                              {loc}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-2">
-                          DROP-OFF LOCATION
-                        </label>
-                        <select
-                          value={dropoffLocation}
-                          onChange={(e) => setDropoffLocation(e.target.value)}
-                          className="w-full px-3.5 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-medium focus:outline-none focus:border-emerald-500 cursor-pointer"
-                        >
-                          {locationOptions.map((loc) => (
-                            <option key={loc} value={loc} className="bg-[#0f141c]">
-                              {loc}
-                            </option>
-                          ))}
-                        </select>
                       </div>
                     </div>
 
@@ -730,10 +683,6 @@ export default function BookingForm({
                         <span className="text-emerald-400 font-bold">
                           {driverOption === "with_driver" ? "Chauffeur Service Included" : "Self Drive"}
                         </span>
-                      </div>
-                      <div className="flex justify-between py-1 border-b border-white/5">
-                        <span className="text-zinc-400">Pickup Location:</span>
-                        <span className="text-white">{pickupLocation}</span>
                       </div>
                       <div className="flex justify-between py-1 border-b border-white/5">
                         <span className="text-zinc-400">Customer Name:</span>

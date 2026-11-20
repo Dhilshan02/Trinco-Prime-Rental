@@ -58,12 +58,6 @@ export default function Summary({
             <span className="font-bold text-white">{pricing.days} Day(s)</span>
           </div>
           <div className="flex justify-between items-center text-zinc-400">
-            <span>Pickup Location</span>
-            <span className="font-bold text-white truncate max-w-[170px]">
-              {pickupLocation || "Trincomalee"}
-            </span>
-          </div>
-          <div className="flex justify-between items-center text-zinc-400">
             <span>Driver Mode</span>
             <span className={`font-bold ${driverOption === "with_driver" ? "text-emerald-400" : "text-white"}`}>
               {driverOption === "with_driver" ? "Chauffeur Included" : "Self Drive"}
