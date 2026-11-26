@@ -22,16 +22,6 @@ export default function FleetCard({ vehicle, onBook }: FleetCardProps) {
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           className="object-cover group-hover:scale-105 transition-transform duration-500"
         />
-
-        {/* Category Pill Top Left */}
-        <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-black/75 border border-white/10 text-[10px] font-bold tracking-wider text-emerald-400 backdrop-blur-md uppercase">
-          {vehicle.categoryLabel}
-        </div>
-
-        {/* Feature Badge Bottom Right */}
-        <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-md bg-black/85 text-[10px] font-bold text-zinc-300 border border-white/10 backdrop-blur-md">
-          {vehicle.badge}
-        </div>
       </div>
 
       {/* Content */}
