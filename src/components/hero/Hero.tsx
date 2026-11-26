@@ -156,9 +156,14 @@ export default function Hero({ onSearch }: HeroProps) {
 
   return (
     <section id="hero" className="relative pt-24 pb-16 lg:pt-32 lg:pb-24 overflow-hidden bg-grid">
-      {/* Background radial ambient lights */}
-      <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute top-1/3 right-1/4 w-[600px] h-[600px] bg-emerald-400/5 rounded-full blur-[160px] pointer-events-none" />
+      {/* Background ambient radial glow (GPU-friendly, zero blur lag) */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-50"
+        style={{
+          background:
+            "radial-gradient(circle at 25% 30%, rgba(0, 229, 153, 0.12) 0%, transparent 55%), radial-gradient(circle at 75% 35%, rgba(0, 229, 153, 0.07) 0%, transparent 50%)",
+        }}
+      />
 
       {/* Main Composition: Desktop Left ~45% (Text), Right ~55% (3D Car) */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
