@@ -11,11 +11,10 @@ const CarScene = dynamic(() => import("./CarScene"), {
   ssr: false,
   loading: () => (
     <div className="relative w-full h-[360px] sm:h-[450px] lg:h-[560px] flex items-center justify-center">
-      <img
-        src="/fleet/hero-poster.jpg"
-        alt="Honda Vezel Showcase"
-        className="max-h-[85%] object-contain opacity-80"
-      />
+      <div className="flex items-center gap-3 px-5 py-2.5 rounded-full bg-black/60 border border-emerald-500/30 text-xs text-emerald-400 font-semibold backdrop-blur-md shadow-lg shadow-emerald-950/30">
+        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+        <span>Loading 3D Experience...</span>
+      </div>
     </div>
   ),
 });
@@ -56,89 +55,85 @@ export default function Hero({ onSearch }: HeroProps) {
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     if (prefersReducedMotion) {
-      if (textRef.current) gsap.set(textRef.current, { opacity: 1, x: 0 });
+      if (textRef.current) gsap.set(textRef.current, { opacity: 1, x: 0, y: 0 });
       if (carGroupRef.current) {
-        carGroupRef.current.position.x = 0;
-        carGroupRef.current.rotation.y = -0.35;
+        carGroupRef.current.position.set(0, 0, 0);
+        carGroupRef.current.rotation.set(0, -0.35, 0);
       }
       return;
     }
 
-    // Set initial positions per spec:
-    // Text: offscreen left (translateX: -120), opacity: 0
-    // Car: offscreen right (x: +8 to +10 in 3D scene)
+    // Set initial positions:
+    // Both 3D car and head letters enter from the corner of the right side into the center
     if (textRef.current) {
-      gsap.set(textRef.current, { opacity: 0, x: -120 });
+      gsap.set(textRef.current, { opacity: 0, x: 140, y: -20 });
     }
     if (carGroupRef.current) {
-      carGroupRef.current.position.x = 10;
-      carGroupRef.current.rotation.y = 0.61; // ~35 deg yaw
+      carGroupRef.current.position.set(12, 1.2, -3);
+      carGroupRef.current.rotation.set(0.05, 0.75, -0.05);
     }
 
     const tl = gsap.timeline({
       defaults: { ease: "power3.out" },
-      delay: 0.1,
+      delay: 0.05,
     });
 
-    // 0.0 - 1.6s: Car moves right -> left, Text moves left -> right
-    tl.to(
-      textRef.current,
-      {
-        opacity: 1,
-        x: 0,
-        duration: 1.6,
-      },
-      0
-    );
-
+    // 1. Car drives in from the right corner into the center
     if (carGroupRef.current) {
       tl.to(
         carGroupRef.current.position,
         {
           x: 0,
-          duration: 1.6,
+          y: 0,
+          z: 0,
+          duration: 1.8,
+          ease: "power3.out",
         },
         0
       );
       tl.to(
         carGroupRef.current.rotation,
         {
-          y: -0.35, // side-3/4 view (~ -20 deg)
-          duration: 1.6,
+          x: 0,
+          y: -0.35,
+          z: 0,
+          duration: 1.8,
+          ease: "power3.out",
         },
         0
       );
     }
 
-    // 1.6 - 2.2s: Meet & subtle bounce + buttons fade up
-    tl.to(
-      textRef.current,
-      {
-        x: 0,
-        duration: 0.6,
-        ease: "back.out(1.4)",
-      },
-      1.6
-    );
-
-    if (carGroupRef.current) {
+    // 2. Head letters smoothly glide from right side corner into center with perfect alignment
+    if (textRef.current) {
       tl.to(
-        carGroupRef.current.position,
+        textRef.current,
         {
+          opacity: 1,
+          x: 0,
           y: 0,
-          duration: 0.6,
-          ease: "back.out(1.2)",
+          duration: 1.6,
+          ease: "power3.out",
         },
-        1.6
+        0.1
       );
     }
   };
 
   useEffect(() => {
-    // Fallback trigger in case 3D model takes longer or errors out
+    // Hide text initially while model is loading so they enter together
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (!prefersReducedMotion && textRef.current) {
+      gsap.set(textRef.current, { opacity: 0, x: 140, y: -20 });
+    }
+
+    // Safety fallback trigger only if 3D loading takes longer than 3.5s
     const timer = setTimeout(() => {
       startIntroTimeline();
-    }, 1500);
+    }, 3500);
     return () => clearTimeout(timer);
   }, []);
 

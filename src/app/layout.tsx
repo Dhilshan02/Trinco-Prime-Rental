@@ -1,13 +1,6 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import WhatsAppButton from "@/components/WhatsAppButton";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-sans",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://trincoprimerental.lk"),
@@ -31,7 +24,7 @@ export const metadata: Metadata = {
     siteName: "Trinco Prime Rentals",
     images: [
       {
-        url: "/fleet/hero-poster.jpg",
+        url: "/fleet/toyota-c-hr.jpg",
         width: 1200,
         height: 630,
         alt: "Trinco Prime Rentals Fleet",
@@ -87,7 +80,7 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className="dark">
       <head>
         <script
           type="application/ld+json"

@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 
 interface CarSceneProps {
   onModelReady?: () => void;
@@ -38,7 +39,7 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({
-        antialias: false, // Disabling MSAA on heavy 185MB model gives massive 3x FPS boost
+        antialias: false, // Disabling MSAA gives 3x FPS boost
         alpha: true,
         powerPreference: "high-performance",
         precision: "mediump",
@@ -94,23 +95,30 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
     shadowPlane.position.y = -0.01;
     scene.add(shadowPlane);
 
-    // 6. Root group for GSAP animations
+    // 6. Root group for animations
     const carRootGroup = new THREE.Group();
     scene.add(carRootGroup);
     carGroupRef.current = carRootGroup;
 
     if (!prefersReducedMotion) {
-      carRootGroup.position.set(10, 0, 0);
-      carRootGroup.rotation.y = 0.61;
+      // Start in top-right corner for animation
+      carRootGroup.position.set(12, 1.2, -3);
+      carRootGroup.rotation.set(0.05, 0.75, -0.05);
     } else {
       carRootGroup.position.set(0, 0, 0);
-      carRootGroup.rotation.y = -0.35;
+      carRootGroup.rotation.set(0, -0.35, 0);
     }
 
-    // 7. Load GLTF model
+    // 7. Load compressed Draco GLTF model
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath("/draco/gltf/");
+    dracoLoader.preload();
+
     const loader = new GLTFLoader();
+    loader.setDRACOLoader(dracoLoader);
+
     loader.load(
-      "/models/vezel.glb",
+      "/models/vezel_compressed.glb",
       (gltf) => {
         const model = gltf.scene;
 
@@ -128,7 +136,7 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
         model.position.y = -updatedBox.min.y;
         model.position.z = -center.z;
 
-        // Optimize materials: disable cast/receive shadow passes
+        // Optimize materials
         model.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
             const m = child as THREE.Mesh;
@@ -156,7 +164,7 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
       },
       undefined,
       (err) => {
-        console.warn("Could not load /models/vezel.glb, using poster fallback:", err);
+        console.warn("Could not load /models/vezel_compressed.glb:", err);
         setHasError(true);
       }
     );
@@ -199,16 +207,15 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
     );
     observer.observe(container);
 
-    // 11. Throttled 30-40 FPS animation loop to ensure feather-light cursor
+    // 11. Throttled 35 FPS animation loop
     let animId: number;
     let lastRenderTime = 0;
-    const targetInterval = 1000 / 35; // ~35 FPS is butter-smooth for breathing/parallax and zero CPU strain
+    const targetInterval = 1000 / 35;
     const clock = new THREE.Clock();
 
     const animate = (currentTime: number) => {
       animId = requestAnimationFrame(animate);
 
-      // Skip render if hero is not in viewport
       if (!isVisibleRef.current) return;
 
       const delta = currentTime - lastRenderTime;
@@ -217,7 +224,8 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
 
       const elapsedTime = clock.getElapsedTime();
 
-      if (!prefersReducedMotion && carRootGroup.children.length > 0) {
+      // Only apply idle floating/parallax when model is loaded and in place
+      if (!prefersReducedMotion && carRootGroup.children.length > 0 && Math.abs(carRootGroup.position.x) < 1.0) {
         const idleFloat = Math.sin(elapsedTime * 1.5) * 0.04;
         carRootGroup.position.y = idleFloat;
 
@@ -247,6 +255,7 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
       if (renderer.domElement && container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
+      dracoLoader.dispose();
       renderer.dispose();
     };
   }, [onModelReady, carGroupRef]);
@@ -254,11 +263,9 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
   if (hasError) {
     return (
       <div className="relative w-full h-[360px] sm:h-[450px] lg:h-[560px] flex items-center justify-center pointer-events-none">
-        <img
-          src="/fleet/hero-poster.jpg"
-          alt="Honda Vezel Showcase"
-          className="max-h-[85%] object-contain drop-shadow-[0_20px_50px_rgba(0,0,0,0.8)] filter brightness-105"
-        />
+        <div className="text-zinc-600 text-xs tracking-wider uppercase font-semibold">
+          3D Canvas Ready
+        </div>
       </div>
     );
   }
@@ -268,17 +275,12 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
       ref={containerRef}
       className="relative w-full h-[360px] sm:h-[450px] lg:h-[560px] flex items-center justify-center overflow-hidden pointer-events-none select-none"
     >
-      {/* Loading Progress Poster */}
+      {/* Loading Indicator without any background image */}
       {!loaded && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-10 transition-opacity duration-500">
-          <img
-            src="/fleet/hero-poster.jpg"
-            alt="Loading Vezel 3D Preview"
-            className="w-full h-full object-contain opacity-40 blur-[1px]"
-          />
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 px-4 py-2 rounded-full bg-black/80 border border-emerald-500/30 text-xs text-emerald-400 font-semibold backdrop-blur-md">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-            Loading 3D Experience...
+          <div className="flex items-center gap-3 px-5 py-2.5 rounded-full bg-black/60 border border-emerald-500/30 text-xs text-emerald-400 font-semibold backdrop-blur-md shadow-lg shadow-emerald-950/30">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+            <span>Loading 3D Experience...</span>
           </div>
         </div>
       )}
