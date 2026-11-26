@@ -31,7 +31,7 @@ interface HeroProps {
 export default function Hero({ onSearch }: HeroProps) {
   const textRef = useRef<HTMLDivElement>(null);
   const carGroupRef = useRef<THREE.Group | null>(null);
-  const [animationStarted, setAnimationStarted] = useState(false);
+  const [carAnimated, setCarAnimated] = useState(false);
 
   // Dynamic tomorrow date helper
   const getTomorrowDate = () => {
@@ -46,16 +46,16 @@ export default function Hero({ onSearch }: HeroProps) {
   const [rentalDate, setRentalDate] = useState(getTomorrowDate());
   const [pickupTime, setPickupTime] = useState("09:00");
 
-  const startIntroTimeline = () => {
-    if (animationStarted) return;
-    setAnimationStarted(true);
+  // Animate 3D car fast when model is ready
+  const startCarAnimation = () => {
+    if (carAnimated) return;
+    setCarAnimated(true);
 
     const prefersReducedMotion =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     if (prefersReducedMotion) {
-      if (textRef.current) gsap.set(textRef.current, { opacity: 1, x: 0, y: 0 });
       if (carGroupRef.current) {
         carGroupRef.current.position.set(0, 0, 0);
         carGroupRef.current.rotation.set(0, -0.35, 0);
@@ -63,78 +63,56 @@ export default function Hero({ onSearch }: HeroProps) {
       return;
     }
 
-    // Set initial positions:
-    // Both 3D car and head letters enter from the corner of the right side into the center
-    if (textRef.current) {
-      gsap.set(textRef.current, { opacity: 0, x: 140, y: -20 });
-    }
     if (carGroupRef.current) {
-      carGroupRef.current.position.set(12, 1.2, -3);
+      // Snappy and fast: glides in from right corner to center in 0.85s
+      carGroupRef.current.position.set(10, 1.0, -2.5);
       carGroupRef.current.rotation.set(0.05, 0.75, -0.05);
-    }
 
-    const tl = gsap.timeline({
-      defaults: { ease: "power3.out" },
-      delay: 0.05,
-    });
+      gsap.to(carGroupRef.current.position, {
+        x: 0,
+        y: 0,
+        z: 0,
+        duration: 0.85,
+        ease: "power4.out",
+      });
 
-    // 1. Car drives in from the right corner into the center
-    if (carGroupRef.current) {
-      tl.to(
-        carGroupRef.current.position,
-        {
-          x: 0,
-          y: 0,
-          z: 0,
-          duration: 1.8,
-          ease: "power3.out",
-        },
-        0
-      );
-      tl.to(
-        carGroupRef.current.rotation,
-        {
-          x: 0,
-          y: -0.35,
-          z: 0,
-          duration: 1.8,
-          ease: "power3.out",
-        },
-        0
-      );
-    }
-
-    // 2. Head letters smoothly glide from right side corner into center with perfect alignment
-    if (textRef.current) {
-      tl.to(
-        textRef.current,
-        {
-          opacity: 1,
-          x: 0,
-          y: 0,
-          duration: 1.6,
-          ease: "power3.out",
-        },
-        0.1
-      );
+      gsap.to(carGroupRef.current.rotation, {
+        x: 0,
+        y: -0.35,
+        z: 0,
+        duration: 0.85,
+        ease: "power4.out",
+      });
     }
   };
 
+  // Animate headline text immediately on page mount (zero delay!)
   useEffect(() => {
-    // Hide text initially while model is loading so they enter together
     const prefersReducedMotion =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    if (!prefersReducedMotion && textRef.current) {
-      gsap.set(textRef.current, { opacity: 0, x: 140, y: -20 });
+    if (prefersReducedMotion) {
+      if (textRef.current) {
+        gsap.set(textRef.current, { opacity: 1, x: 0, y: 0 });
+      }
+      return;
     }
 
-    // Safety fallback trigger only if 3D loading takes longer than 3.5s
-    const timer = setTimeout(() => {
-      startIntroTimeline();
-    }, 3500);
-    return () => clearTimeout(timer);
+    if (textRef.current) {
+      // Immediately and suddenly animate letters into website on click/mount
+      gsap.fromTo(
+        textRef.current,
+        { opacity: 0, x: 80, y: -10 },
+        {
+          opacity: 1,
+          x: 0,
+          y: 0,
+          duration: 0.65,
+          ease: "power3.out",
+        }
+      );
+    }
   }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -171,7 +149,7 @@ export default function Hero({ onSearch }: HeroProps) {
           {/* Right ~55% (3D Car overlaps slightly) */}
           <div className="lg:col-span-7 relative w-full lg:-ml-6">
             <CarScene
-              onModelReady={startIntroTimeline}
+              onModelReady={startCarAnimation}
               carGroupRef={carGroupRef}
             />
           </div>

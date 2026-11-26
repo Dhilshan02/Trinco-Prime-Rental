@@ -82,6 +82,18 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <head>
+        <link
+          rel="preload"
+          href="/models/vezel_compressed.glb"
+          as="fetch"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preload"
+          href="/draco/gltf/draco_decoder.wasm"
+          as="fetch"
+          crossOrigin="anonymous"
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
