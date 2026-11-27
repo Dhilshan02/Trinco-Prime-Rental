@@ -2,7 +2,6 @@
 
 import React, { useRef, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import * as THREE from "three";
 import gsap from "gsap";
 import HeroText from "./HeroText";
 import { Search, Calendar, MapPin, Clock, Car } from "lucide-react";
@@ -30,8 +29,6 @@ interface HeroProps {
 
 export default function Hero({ onSearch }: HeroProps) {
   const textRef = useRef<HTMLDivElement>(null);
-  const carGroupRef = useRef<THREE.Group | null>(null);
-  const [carAnimated, setCarAnimated] = useState(false);
 
   // Dynamic tomorrow date helper
   const getTomorrowDate = () => {
@@ -46,48 +43,7 @@ export default function Hero({ onSearch }: HeroProps) {
   const [rentalDate, setRentalDate] = useState(getTomorrowDate());
   const [pickupTime, setPickupTime] = useState("09:00");
 
-  // Animate 3D car: travel 3 seconds from right side corner to center
-  const startCarAnimation = () => {
-    if (carAnimated) return;
-    setCarAnimated(true);
-
-    const prefersReducedMotion =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    if (prefersReducedMotion) {
-      if (carGroupRef.current) {
-        carGroupRef.current.position.set(0, 0, 0);
-        carGroupRef.current.rotation.set(0, -0.35, 0);
-      }
-      return;
-    }
-
-    if (carGroupRef.current) {
-      // Start in far right corner angled as if driving in
-      carGroupRef.current.position.set(16, 1.2, -3.5);
-      carGroupRef.current.rotation.set(0.06, 0.92, -0.05);
-
-      // Smooth 3 second cinematic travel from right side corner to center
-      gsap.to(carGroupRef.current.position, {
-        x: 0,
-        y: 0,
-        z: 0,
-        duration: 3.0,
-        ease: "power2.out",
-      });
-
-      gsap.to(carGroupRef.current.rotation, {
-        x: 0,
-        y: -0.35,
-        z: 0,
-        duration: 3.0,
-        ease: "power2.out",
-      });
-    }
-  };
-
-  // Animate words: "Drive Trincomalee in Prime Style" travel 3 seconds from left side corner to center
+  // Animate headline words "Drive Trincomalee in Prime Style" from left side corner to center over 3 seconds
   useEffect(() => {
     const prefersReducedMotion =
       typeof window !== "undefined" &&
@@ -101,31 +57,28 @@ export default function Hero({ onSearch }: HeroProps) {
     }
 
     if (textRef.current) {
-      // Left side content travels 3 seconds from left side corner to center
+      // Main headline and left content travel 3 seconds from left corner to center
       gsap.fromTo(
         textRef.current,
         {
           opacity: 0,
-          x: -220,
-          y: 0,
+          x: -200,
         },
         {
           opacity: 1,
           x: 0,
-          y: 0,
           duration: 3.0,
           ease: "power2.out",
         }
       );
 
-      // Specifically emphasize the words: "Drive Trincomalee in Prime Style"
       const headline = textRef.current.querySelector("h1");
       if (headline) {
         gsap.fromTo(
           headline,
           {
             opacity: 0,
-            x: -260,
+            x: -250,
           },
           {
             opacity: 1,
@@ -164,17 +117,14 @@ export default function Hero({ onSearch }: HeroProps) {
       {/* Main Composition: Desktop Left ~45% (Text), Right ~55% (3D Car) */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center min-h-[460px] lg:min-h-[560px]">
-          {/* Left ~45%: Hero Text & Headline arriving from left corner */}
+          {/* Left ~45%: Hero Text & Headline arriving from left corner in 3 seconds */}
           <div className="lg:col-span-5 flex flex-col justify-center">
             <HeroText ref={textRef} />
           </div>
 
-          {/* Right ~55%: 3D Car arriving from right corner */}
+          {/* Right ~55%: 3D Car arriving from right corner in 3 seconds */}
           <div className="lg:col-span-7 relative w-full lg:-ml-6">
-            <CarScene
-              onModelReady={startCarAnimation}
-              carGroupRef={carGroupRef}
-            />
+            <CarScene />
           </div>
         </div>
 

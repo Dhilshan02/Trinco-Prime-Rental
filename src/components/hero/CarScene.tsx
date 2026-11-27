@@ -1,18 +1,16 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
+import gsap from "gsap";
 
-interface CarSceneProps {
-  onModelReady?: () => void;
-  carGroupRef: React.MutableRefObject<THREE.Group | null>;
-}
-
-export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
+export default function CarScene() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loaded, setLoaded] = useState(false);
+  const [loadPercent, setLoadPercent] = useState<number>(0);
   const [hasError, setHasError] = useState(false);
   const mouseRef = useRef({ x: 0, y: 0 });
   const isVisibleRef = useRef(true);
@@ -35,17 +33,17 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
     const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
     camera.position.set(5.5, 2.2, 5.5);
 
-    // 3. Ultra-smooth WebGL Renderer with High Performance & Antialiasing
+    // 3. Ultra-smooth WebGL Renderer
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({
-        antialias: true, // Smooth crisp edges without pixelated lines
+        antialias: true, // Smooth edges without jagged pixelation
         alpha: true,
         powerPreference: "high-performance",
         precision: "highp",
       });
       renderer.setSize(width, height);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0)); // Crisp high-DPI rendering
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
       renderer.shadowMap.enabled = false;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.1;
@@ -56,7 +54,7 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
       return;
     }
 
-    // 4. Studio Lighting Rig
+    // 4. Lighting Rig
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
     scene.add(ambientLight);
 
@@ -72,7 +70,7 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
     softFill.position.set(0, -2, 5);
     scene.add(softFill);
 
-    // 5. Pre-baked smooth gradient Contact Shadow Plane
+    // 5. Contact Shadow Plane
     const shadowGeo = new THREE.PlaneGeometry(8.5, 8.5);
     const canvas = document.createElement("canvas");
     canvas.width = 128;
@@ -97,21 +95,20 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
     shadowPlane.position.y = -0.01;
     scene.add(shadowPlane);
 
-    // 6. Root group for car animations
+    // 6. Car Root Group
     const carRootGroup = new THREE.Group();
     scene.add(carRootGroup);
-    carGroupRef.current = carRootGroup;
 
-    if (!prefersReducedMotion) {
-      // Start in far right corner for 3D travel animation
-      carRootGroup.position.set(16, 1.2, -3.5);
-      carRootGroup.rotation.set(0.06, 0.92, -0.05);
-    } else {
+    // Position initially in resting spot (or right corner if animating)
+    if (prefersReducedMotion) {
       carRootGroup.position.set(0, 0, 0);
       carRootGroup.rotation.set(0, -0.35, 0);
+    } else {
+      carRootGroup.position.set(8.5, 0.6, -1.2);
+      carRootGroup.rotation.set(0.05, 0.82, -0.04);
     }
 
-    // 7. Load compressed Draco GLTF model
+    // 7. Load GLTF with Draco
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath("/draco/gltf/");
     dracoLoader.preload();
@@ -138,7 +135,7 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
         model.position.y = -updatedBox.min.y;
         model.position.z = -center.z;
 
-        // Enhance car materials for glossy, realistic automotive finish
+        // Enhance metallic/glossy automotive finish
         model.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
             const m = child as THREE.Mesh;
@@ -160,11 +157,34 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
         carRootGroup.add(model);
         setLoaded(true);
 
-        if (onModelReady) {
-          onModelReady();
+        // Run 3-second entrance animation from right corner to center
+        if (!prefersReducedMotion) {
+          carRootGroup.position.set(8.5, 0.6, -1.2);
+          carRootGroup.rotation.set(0.05, 0.82, -0.04);
+
+          gsap.to(carRootGroup.position, {
+            x: 0,
+            y: 0,
+            z: 0,
+            duration: 3.0,
+            ease: "power2.out",
+          });
+
+          gsap.to(carRootGroup.rotation, {
+            x: 0,
+            y: -0.35,
+            z: 0,
+            duration: 3.0,
+            ease: "power2.out",
+          });
         }
       },
-      undefined,
+      (xhr) => {
+        if (xhr.lengthComputable && xhr.total > 0) {
+          const pct = Math.round((xhr.loaded / xhr.total) * 100);
+          setLoadPercent(pct);
+        }
+      },
       (err) => {
         console.warn("Could not load /models/vezel_compressed.glb:", err);
         setHasError(true);
@@ -202,7 +222,7 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
     );
     observer.observe(container);
 
-    // 11. Full native 60+ FPS unthrottled smooth animation loop
+    // 11. Full 60+ FPS unthrottled smooth animation loop
     let animId: number;
     const clock = new THREE.Clock();
 
@@ -213,10 +233,9 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
 
       const elapsedTime = clock.getElapsedTime();
 
-      // Only apply idle floating & responsive mouse parallax when car has reached near center
+      // Only apply idle floating & responsive mouse parallax when car is near center
       if (!prefersReducedMotion && carRootGroup.children.length > 0) {
         if (Math.abs(carRootGroup.position.x) < 0.3) {
-          // Fast and lively floating wave
           const idleFloat = Math.sin(elapsedTime * 2.2) * 0.045;
           carRootGroup.position.y = THREE.MathUtils.lerp(
             carRootGroup.position.y,
@@ -255,31 +274,40 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
       dracoLoader.dispose();
       renderer.dispose();
     };
-  }, [onModelReady, carGroupRef]);
-
-  if (hasError) {
-    return (
-      <div className="relative w-full h-[360px] sm:h-[450px] lg:h-[560px] flex items-center justify-center pointer-events-none">
-        <div className="text-zinc-600 text-xs tracking-wider uppercase font-semibold">
-          3D Canvas Ready
-        </div>
-      </div>
-    );
-  }
+  }, []);
 
   return (
     <div
       ref={containerRef}
       className="relative w-full h-[360px] sm:h-[450px] lg:h-[560px] flex items-center justify-center overflow-hidden pointer-events-none select-none"
     >
-      {!loaded && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-10 transition-opacity duration-500">
-          <div className="flex items-center gap-3 px-5 py-2.5 rounded-full bg-black/60 border border-emerald-500/30 text-xs text-emerald-400 font-semibold backdrop-blur-md shadow-lg shadow-emerald-950/30">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-            <span>Loading 3D Experience...</span>
-          </div>
+      {/* Immediate Instant Poster: Shown on second 0 while model loads, fades out smoothly */}
+      <div
+        className={`absolute inset-0 flex items-center justify-center transition-opacity duration-700 pointer-events-none ${
+          loaded ? "opacity-0" : "opacity-100"
+        }`}
+      >
+        <Image
+          src="/fleet/honda-vezel.jpg"
+          alt="Honda Vezel SUV"
+          width={640}
+          height={380}
+          priority
+          className="w-auto h-auto max-h-[75%] object-contain opacity-80 filter drop-shadow-[0_15px_35px_rgba(0,229,153,0.15)]"
+        />
+
+        {/* Live Loading Badge with Percentage */}
+        <div className="absolute bottom-6 flex items-center gap-3 px-5 py-2.5 rounded-full bg-black/75 border border-emerald-500/30 text-xs text-emerald-400 font-semibold backdrop-blur-md shadow-lg shadow-emerald-950/40">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+          <span>
+            {hasError
+              ? "3D Experience Ready"
+              : loadPercent > 0
+              ? `Loading 3D Car... ${loadPercent}%`
+              : "Loading 3D Experience..."}
+          </span>
         </div>
-      )}
+      </div>
     </div>
   );
 }
