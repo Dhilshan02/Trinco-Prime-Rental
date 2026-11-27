@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
@@ -33,11 +32,11 @@ export default function CarScene() {
     const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
     camera.position.set(5.5, 2.2, 5.5);
 
-    // 3. Ultra-smooth WebGL Renderer
+    // 3. Ultra-smooth WebGL Renderer with High Performance & Antialiasing
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({
-        antialias: true, // Smooth edges without jagged pixelation
+        antialias: true, // Smooth crisp edges without pixelated lines
         alpha: true,
         powerPreference: "high-performance",
         precision: "highp",
@@ -47,6 +46,15 @@ export default function CarScene() {
       renderer.shadowMap.enabled = false;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.1;
+
+      // Ensure canvas fills container properly
+      renderer.domElement.style.position = "absolute";
+      renderer.domElement.style.top = "0";
+      renderer.domElement.style.left = "0";
+      renderer.domElement.style.width = "100%";
+      renderer.domElement.style.height = "100%";
+      renderer.domElement.style.pointerEvents = "auto";
+
       container.appendChild(renderer.domElement);
     } catch (e) {
       console.warn("WebGL not supported or failed to initialize:", e);
@@ -70,7 +78,7 @@ export default function CarScene() {
     softFill.position.set(0, -2, 5);
     scene.add(softFill);
 
-    // 5. Contact Shadow Plane
+    // 5. Contact Shadow Plane (Attached to carRootGroup so shadow moves with car!)
     const shadowGeo = new THREE.PlaneGeometry(8.5, 8.5);
     const canvas = document.createElement("canvas");
     canvas.width = 128;
@@ -93,19 +101,19 @@ export default function CarScene() {
     const shadowPlane = new THREE.Mesh(shadowGeo, shadowMat);
     shadowPlane.rotation.x = -Math.PI / 2;
     shadowPlane.position.y = -0.01;
-    scene.add(shadowPlane);
 
     // 6. Car Root Group
     const carRootGroup = new THREE.Group();
+    carRootGroup.add(shadowPlane);
     scene.add(carRootGroup);
 
-    // Position initially in resting spot (or right corner if animating)
+    // Position initially in resting spot (or off-screen right corner if animating)
     if (prefersReducedMotion) {
       carRootGroup.position.set(0, 0, 0);
       carRootGroup.rotation.set(0, -0.35, 0);
     } else {
-      carRootGroup.position.set(8.5, 0.6, -1.2);
-      carRootGroup.rotation.set(0.05, 0.82, -0.04);
+      carRootGroup.position.set(9.0, 0.5, -2.0);
+      carRootGroup.rotation.set(0.04, 0.85, -0.03);
     }
 
     // 7. Load GLTF with Draco
@@ -157,11 +165,13 @@ export default function CarScene() {
         carRootGroup.add(model);
         setLoaded(true);
 
-        // Run 3-second entrance animation from right corner to center
+        // Drive-in 3D animation: Car drives in from right road and smoothly parks in hero position
         if (!prefersReducedMotion) {
-          carRootGroup.position.set(8.5, 0.6, -1.2);
-          carRootGroup.rotation.set(0.05, 0.82, -0.04);
+          // Start position: on the right, angled towards the road
+          carRootGroup.position.set(9.0, 0.5, -2.0);
+          carRootGroup.rotation.set(0.04, 0.85, -0.03);
 
+          // 3-second drive in and park smoothly
           gsap.to(carRootGroup.position, {
             x: 0,
             y: 0,
@@ -233,10 +243,10 @@ export default function CarScene() {
 
       const elapsedTime = clock.getElapsedTime();
 
-      // Only apply idle floating & responsive mouse parallax when car is near center
-      if (!prefersReducedMotion && carRootGroup.children.length > 0) {
-        if (Math.abs(carRootGroup.position.x) < 0.3) {
-          const idleFloat = Math.sin(elapsedTime * 2.2) * 0.045;
+      // Only apply idle floating & responsive mouse parallax when car is parked in hero spot
+      if (!prefersReducedMotion && carRootGroup.children.length > 1) {
+        if (Math.abs(carRootGroup.position.x) < 0.25) {
+          const idleFloat = Math.sin(elapsedTime * 2.0) * 0.04;
           carRootGroup.position.y = THREE.MathUtils.lerp(
             carRootGroup.position.y,
             idleFloat,
@@ -279,35 +289,23 @@ export default function CarScene() {
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-[360px] sm:h-[450px] lg:h-[560px] flex items-center justify-center overflow-hidden pointer-events-none select-none"
+      className="relative w-full h-[360px] sm:h-[450px] lg:h-[560px] flex items-center justify-center overflow-visible pointer-events-none select-none"
     >
-      {/* Immediate Instant Poster: Shown on second 0 while model loads, fades out smoothly */}
-      <div
-        className={`absolute inset-0 flex items-center justify-center transition-opacity duration-700 pointer-events-none ${
-          loaded ? "opacity-0" : "opacity-100"
-        }`}
-      >
-        <Image
-          src="/fleet/honda-vezel.jpg"
-          alt="Honda Vezel SUV"
-          width={640}
-          height={380}
-          priority
-          className="w-auto h-auto max-h-[75%] object-contain opacity-80 filter drop-shadow-[0_15px_35px_rgba(0,229,153,0.15)]"
-        />
-
-        {/* Live Loading Badge with Percentage */}
-        <div className="absolute bottom-6 flex items-center gap-3 px-5 py-2.5 rounded-full bg-black/75 border border-emerald-500/30 text-xs text-emerald-400 font-semibold backdrop-blur-md shadow-lg shadow-emerald-950/40">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-          <span>
-            {hasError
-              ? "3D Experience Ready"
-              : loadPercent > 0
-              ? `Loading 3D Car... ${loadPercent}%`
-              : "Loading 3D Experience..."}
-          </span>
+      {/* Sleek Minimal Loading Badge: NO STATIC IMAGE - Only badge until 3D car drives in */}
+      {!loaded && (
+        <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none transition-opacity duration-300">
+          <div className="flex items-center gap-3 px-5 py-2.5 rounded-full bg-black/75 border border-emerald-500/30 text-xs text-emerald-400 font-semibold backdrop-blur-md shadow-lg shadow-emerald-950/40">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+            <span>
+              {hasError
+                ? "3D Experience Ready"
+                : loadPercent > 0
+                ? `Loading 3D Car... ${loadPercent}%`
+                : "Loading 3D Experience..."}
+            </span>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
