@@ -58,7 +58,7 @@ export default function Hero({ onSearch }: HeroProps) {
 
     if (textRef.current) {
       // Main headline and left content travel 3 seconds from left corner to center
-      gsap.fromTo(
+      const t1 = gsap.fromTo(
         textRef.current,
         {
           opacity: 0,
@@ -73,8 +73,9 @@ export default function Hero({ onSearch }: HeroProps) {
       );
 
       const headline = textRef.current.querySelector("h1");
+      let t2: gsap.core.Tween | null = null;
       if (headline) {
-        gsap.fromTo(
+        t2 = gsap.fromTo(
           headline,
           {
             opacity: 0,
@@ -88,6 +89,11 @@ export default function Hero({ onSearch }: HeroProps) {
           }
         );
       }
+
+      return () => {
+        t1.kill();
+        if (t2) t2.kill();
+      };
     }
   }, []);
 

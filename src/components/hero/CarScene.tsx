@@ -16,6 +16,9 @@ export default function CarScene() {
     const container = containerRef.current;
     if (!container) return;
 
+    let isDisposed = false;
+    let tween: gsap.core.Tween | null = null;
+
     const prefersReducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)"
     ).matches;
@@ -30,7 +33,7 @@ export default function CarScene() {
     camera.position.set(5.5, 2.2, 5.5);
     camera.lookAt(0, 0.8, 0);
 
-    // 3. High-Performance WebGL Renderer (No mouse tracking, purely cinematic)
+    // 3. Ultra-smooth WebGL Renderer
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({
@@ -50,7 +53,7 @@ export default function CarScene() {
       canvasEl.style.left = "0";
       canvasEl.style.width = "100%";
       canvasEl.style.height = "100%";
-      canvasEl.style.pointerEvents = "none"; // Clicks pass right through
+      canvasEl.style.pointerEvents = "none";
       canvasEl.style.transform = "translateZ(0)";
 
       container.appendChild(canvasEl);
@@ -110,18 +113,9 @@ export default function CarScene() {
       carRootGroup.position.set(6.2, 0, -4.2);
     }
 
-    // Render loop controller: Only renders while driving in, then rests with 0% CPU!
-    let animId: number | null = null;
-    let isDriving = true;
-
-    const renderScene = () => {
-      renderer.render(scene, camera);
-    };
-
-    const animateLoop = () => {
-      renderScene();
-      if (isDriving) {
-        animId = requestAnimationFrame(animateLoop);
+    const safeRender = () => {
+      if (!isDisposed && renderer) {
+        renderer.render(scene, camera);
       }
     };
 
@@ -136,6 +130,8 @@ export default function CarScene() {
     loader.load(
       "/models/vezel_compressed.glb",
       (gltf) => {
+        if (isDisposed) return;
+
         const model = gltf.scene;
 
         const box = new THREE.Box3().setFromObject(model);
@@ -176,79 +172,80 @@ export default function CarScene() {
         setLoaded(true);
 
         if (!prefersReducedMotion) {
-          // Start render loop during entrance drive
-          isDriving = true;
-          animateLoop();
+          // Unified GSAP animation driving position, wheel spin & render
+          const animObj = {
+            x: 6.2,
+            z: -4.2,
+            wheelRot: 0,
+          };
 
-          // 1. Drive straight into hero spot (3.0 seconds)
-          carRootGroup.position.set(6.2, 0, -4.2);
+          carRootGroup.position.set(animObj.x, 0, animObj.z);
           carRootGroup.rotation.set(0, -0.35, 0);
 
-          gsap.to(carRootGroup.position, {
+          tween = gsap.to(animObj, {
             x: 0,
-            y: 0,
             z: 0,
-            duration: 3.0,
-            ease: "power2.out",
-            onComplete: () => {
-              // Car has parked! Stop render loop completely for 0% CPU usage!
-              isDriving = false;
-              renderScene();
-            },
-          });
-
-          // 2. Spin all tires continuously while driving, then stop
-          const wheelMotion = { rotation: 0 };
-          gsap.to(wheelMotion, {
-            rotation: Math.PI * 12, // 6 full wheel rotations
+            wheelRot: Math.PI * 12, // 6 full wheel rotations
             duration: 3.0,
             ease: "power2.out",
             onUpdate: () => {
+              if (isDisposed) return;
+              carRootGroup.position.x = animObj.x;
+              carRootGroup.position.z = animObj.z;
               for (let i = 0; i < wheelNodes.length; i++) {
-                wheelNodes[i].rotation.x = wheelMotion.rotation;
+                wheelNodes[i].rotation.x = animObj.wheelRot;
               }
+              safeRender();
+            },
+            onComplete: () => {
+              safeRender();
             },
           });
         } else {
           carRootGroup.position.set(0, 0, 0);
           carRootGroup.rotation.set(0, -0.35, 0);
-          renderScene();
+          safeRender();
         }
       },
       (xhr) => {
-        if (xhr.lengthComputable && xhr.total > 0) {
+        if (!isDisposed && xhr.lengthComputable && xhr.total > 0) {
           const pct = Math.round((xhr.loaded / xhr.total) * 100);
           setLoadPercent(pct);
         }
       },
       (err) => {
-        console.warn("Could not load /models/vezel_compressed.glb:", err);
-        setHasError(true);
+        if (!isDisposed) {
+          console.warn("Could not load /models/vezel_compressed.glb:", err);
+          setHasError(true);
+        }
       }
     );
 
     // 8. Resize handler
     const onResize = () => {
-      if (!container) return;
+      if (isDisposed || !container) return;
       const w = container.clientWidth;
       const h = container.clientHeight;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
-      renderScene();
+      safeRender();
     };
     window.addEventListener("resize", onResize, { passive: true });
 
     return () => {
-      if (animId !== null) {
-        cancelAnimationFrame(animId);
+      isDisposed = true;
+      if (tween) {
+        tween.kill();
       }
       window.removeEventListener("resize", onResize);
       if (renderer.domElement && container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
-      dracoLoader.dispose();
-      renderer.dispose();
+      try {
+        dracoLoader.dispose();
+        renderer.dispose();
+      } catch {}
     };
   }, []);
 
@@ -257,15 +254,13 @@ export default function CarScene() {
       ref={containerRef}
       className="relative w-full h-[360px] sm:h-[450px] lg:h-[560px] flex items-center justify-center overflow-visible pointer-events-none select-none"
     >
-      {/* Sleek Minimal Loading Badge */}
-      {!loaded && (
+      {/* Minimal Loading Badge */}
+      {!loaded && !hasError && (
         <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none transition-opacity duration-300">
           <div className="flex items-center gap-3 px-5 py-2.5 rounded-full bg-[#0f141c]/95 border border-emerald-500/30 text-xs text-emerald-400 font-semibold shadow-lg shadow-black/50">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
             <span>
-              {hasError
-                ? "3D Experience Ready"
-                : loadPercent > 0
+              {loadPercent > 0
                 ? `Loading 3D Car... ${loadPercent}%`
                 : "Loading 3D Experience..."}
             </span>
