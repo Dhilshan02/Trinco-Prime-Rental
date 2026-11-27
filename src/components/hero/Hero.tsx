@@ -46,7 +46,7 @@ export default function Hero({ onSearch }: HeroProps) {
   const [rentalDate, setRentalDate] = useState(getTomorrowDate());
   const [pickupTime, setPickupTime] = useState("09:00");
 
-  // Animate 3D car fast when model is ready
+  // Animate 3D car: travel 3 seconds from right side corner to center
   const startCarAnimation = () => {
     if (carAnimated) return;
     setCarAnimated(true);
@@ -64,29 +64,30 @@ export default function Hero({ onSearch }: HeroProps) {
     }
 
     if (carGroupRef.current) {
-      // Snappy and fast: glides in from right corner to center in 0.85s
-      carGroupRef.current.position.set(10, 1.0, -2.5);
-      carGroupRef.current.rotation.set(0.05, 0.75, -0.05);
+      // Start in far right corner angled as if driving in
+      carGroupRef.current.position.set(16, 1.2, -3.5);
+      carGroupRef.current.rotation.set(0.06, 0.92, -0.05);
 
+      // Smooth 3 second cinematic travel from right side corner to center
       gsap.to(carGroupRef.current.position, {
         x: 0,
         y: 0,
         z: 0,
-        duration: 0.85,
-        ease: "power4.out",
+        duration: 3.0,
+        ease: "power2.out",
       });
 
       gsap.to(carGroupRef.current.rotation, {
         x: 0,
         y: -0.35,
         z: 0,
-        duration: 0.85,
-        ease: "power4.out",
+        duration: 3.0,
+        ease: "power2.out",
       });
     }
   };
 
-  // Animate headline text immediately on page mount (zero delay!)
+  // Animate words: "Drive Trincomalee in Prime Style" travel 3 seconds from left side corner to center
   useEffect(() => {
     const prefersReducedMotion =
       typeof window !== "undefined" &&
@@ -100,18 +101,40 @@ export default function Hero({ onSearch }: HeroProps) {
     }
 
     if (textRef.current) {
-      // Immediately and suddenly animate letters into website on click/mount
+      // Left side content travels 3 seconds from left side corner to center
       gsap.fromTo(
         textRef.current,
-        { opacity: 0, x: 80, y: -10 },
+        {
+          opacity: 0,
+          x: -220,
+          y: 0,
+        },
         {
           opacity: 1,
           x: 0,
           y: 0,
-          duration: 0.65,
-          ease: "power3.out",
+          duration: 3.0,
+          ease: "power2.out",
         }
       );
+
+      // Specifically emphasize the words: "Drive Trincomalee in Prime Style"
+      const headline = textRef.current.querySelector("h1");
+      if (headline) {
+        gsap.fromTo(
+          headline,
+          {
+            opacity: 0,
+            x: -260,
+          },
+          {
+            opacity: 1,
+            x: 0,
+            duration: 3.0,
+            ease: "power2.out",
+          }
+        );
+      }
     }
   }, []);
 
@@ -129,7 +152,7 @@ export default function Hero({ onSearch }: HeroProps) {
 
   return (
     <section id="hero" className="relative pt-24 pb-16 lg:pt-32 lg:pb-24 overflow-hidden bg-grid">
-      {/* Background ambient radial glow (GPU-friendly, zero blur lag) */}
+      {/* Background ambient radial glow */}
       <div
         className="absolute inset-0 pointer-events-none opacity-50"
         style={{
@@ -141,12 +164,12 @@ export default function Hero({ onSearch }: HeroProps) {
       {/* Main Composition: Desktop Left ~45% (Text), Right ~55% (3D Car) */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center min-h-[460px] lg:min-h-[560px]">
-          {/* Left ~45% */}
+          {/* Left ~45%: Hero Text & Headline arriving from left corner */}
           <div className="lg:col-span-5 flex flex-col justify-center">
             <HeroText ref={textRef} />
           </div>
 
-          {/* Right ~55% (3D Car overlaps slightly) */}
+          {/* Right ~55%: 3D Car arriving from right corner */}
           <div className="lg:col-span-7 relative w-full lg:-ml-6">
             <CarScene
               onModelReady={startCarAnimation}
@@ -155,7 +178,7 @@ export default function Hero({ onSearch }: HeroProps) {
           </div>
         </div>
 
-        {/* Quick Search Bar (from the design) */}
+        {/* Quick Search Bar */}
         <div className="mt-8 lg:mt-12 max-w-5xl mx-auto">
           <form
             onSubmit={handleSearchSubmit}

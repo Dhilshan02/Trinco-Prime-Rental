@@ -21,7 +21,7 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
     const container = containerRef.current;
     if (!container) return;
 
-    // Detect reduced motion
+    // Detect reduced motion preference
     const prefersReducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)"
     ).matches;
@@ -35,18 +35,20 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
     const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
     camera.position.set(5.5, 2.2, 5.5);
 
-    // 3. Ultra-optimized WebGL Renderer
+    // 3. Ultra-smooth WebGL Renderer with High Performance & Antialiasing
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({
-        antialias: false, // Disabling MSAA gives 3x FPS boost
+        antialias: true, // Smooth crisp edges without pixelated lines
         alpha: true,
         powerPreference: "high-performance",
-        precision: "mediump",
+        precision: "highp",
       });
       renderer.setSize(width, height);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0)); // 1.0 DPR for super smooth cursor
-      renderer.shadowMap.enabled = false; // Disable heavy PCF shadow map; contact plane handles shadow
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0)); // Crisp high-DPI rendering
+      renderer.shadowMap.enabled = false;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.1;
       container.appendChild(renderer.domElement);
     } catch (e) {
       console.warn("WebGL not supported or failed to initialize:", e);
@@ -54,31 +56,31 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
       return;
     }
 
-    // 4. Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
+    // 4. Studio Lighting Rig
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 2.2);
     dirLight.position.set(10, 15, 8);
     scene.add(dirLight);
 
-    const rimLight = new THREE.DirectionalLight(0x00e599, 1.2);
+    const rimLight = new THREE.DirectionalLight(0x00e599, 1.4);
     rimLight.position.set(-8, 6, -5);
     scene.add(rimLight);
 
-    const softFill = new THREE.DirectionalLight(0xdcfce7, 0.7);
+    const softFill = new THREE.DirectionalLight(0xdcfce7, 0.8);
     softFill.position.set(0, -2, 5);
     scene.add(softFill);
 
-    // 5. Lightweight Contact Shadow Plane (Pre-baked smooth gradient)
-    const shadowGeo = new THREE.PlaneGeometry(8, 8);
+    // 5. Pre-baked smooth gradient Contact Shadow Plane
+    const shadowGeo = new THREE.PlaneGeometry(8.5, 8.5);
     const canvas = document.createElement("canvas");
     canvas.width = 128;
     canvas.height = 128;
     const ctx = canvas.getContext("2d");
     if (ctx) {
       const grad = ctx.createRadialGradient(64, 64, 10, 64, 64, 60);
-      grad.addColorStop(0, "rgba(0, 0, 0, 0.8)");
+      grad.addColorStop(0, "rgba(0, 0, 0, 0.85)");
       grad.addColorStop(0.5, "rgba(0, 0, 0, 0.35)");
       grad.addColorStop(1, "rgba(0, 0, 0, 0)");
       ctx.fillStyle = grad;
@@ -95,15 +97,15 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
     shadowPlane.position.y = -0.01;
     scene.add(shadowPlane);
 
-    // 6. Root group for animations
+    // 6. Root group for car animations
     const carRootGroup = new THREE.Group();
     scene.add(carRootGroup);
     carGroupRef.current = carRootGroup;
 
     if (!prefersReducedMotion) {
-      // Start in top-right corner for animation
-      carRootGroup.position.set(12, 1.2, -3);
-      carRootGroup.rotation.set(0.05, 0.75, -0.05);
+      // Start in far right corner for 3D travel animation
+      carRootGroup.position.set(16, 1.2, -3.5);
+      carRootGroup.rotation.set(0.06, 0.92, -0.05);
     } else {
       carRootGroup.position.set(0, 0, 0);
       carRootGroup.rotation.set(0, -0.35, 0);
@@ -136,7 +138,7 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
         model.position.y = -updatedBox.min.y;
         model.position.z = -center.z;
 
-        // Optimize materials
+        // Enhance car materials for glossy, realistic automotive finish
         model.traverse((child) => {
           if ((child as THREE.Mesh).isMesh) {
             const m = child as THREE.Mesh;
@@ -147,8 +149,8 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
               mats.forEach((mat) => {
                 if ((mat as THREE.MeshStandardMaterial).isMeshStandardMaterial) {
                   const sm = mat as THREE.MeshStandardMaterial;
-                  sm.roughness = Math.max(sm.roughness * 0.85, 0.25);
-                  sm.metalness = Math.min(sm.metalness * 1.1, 0.85);
+                  sm.roughness = Math.max(sm.roughness * 0.8, 0.2);
+                  sm.metalness = Math.min(sm.metalness * 1.15, 0.9);
                 }
               });
             }
@@ -171,17 +173,10 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
 
     camera.lookAt(0, 0.8, 0);
 
-    // 8. Throttled Mouse parallax listener
-    let mouseTicking = false;
+    // 8. Zero-lag mouse tracker for responsive cursor interaction
     const onMouseMove = (e: MouseEvent) => {
-      if (!mouseTicking) {
-        requestAnimationFrame(() => {
-          mouseRef.current.x = (e.clientX / window.innerWidth) * 2 - 1;
-          mouseRef.current.y = (e.clientY / window.innerHeight) * 2 - 1;
-          mouseTicking = false;
-        });
-        mouseTicking = true;
-      }
+      mouseRef.current.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouseRef.current.y = (e.clientY / window.innerHeight) * 2 - 1;
     };
     window.addEventListener("mousemove", onMouseMove, { passive: true });
 
@@ -196,7 +191,7 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
     };
     window.addEventListener("resize", onResize, { passive: true });
 
-    // 10. Intersection Observer: Stop rendering completely when scrolled away!
+    // 10. Pause rendering when out of viewport
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -207,40 +202,42 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
     );
     observer.observe(container);
 
-    // 11. Throttled 35 FPS animation loop
+    // 11. Full native 60+ FPS unthrottled smooth animation loop
     let animId: number;
-    let lastRenderTime = 0;
-    const targetInterval = 1000 / 35;
     const clock = new THREE.Clock();
 
-    const animate = (currentTime: number) => {
+    const animate = () => {
       animId = requestAnimationFrame(animate);
 
       if (!isVisibleRef.current) return;
 
-      const delta = currentTime - lastRenderTime;
-      if (delta < targetInterval) return;
-      lastRenderTime = currentTime - (delta % targetInterval);
-
       const elapsedTime = clock.getElapsedTime();
 
-      // Only apply idle floating/parallax when model is loaded and in place
-      if (!prefersReducedMotion && carRootGroup.children.length > 0 && Math.abs(carRootGroup.position.x) < 1.0) {
-        const idleFloat = Math.sin(elapsedTime * 1.5) * 0.04;
-        carRootGroup.position.y = idleFloat;
+      // Only apply idle floating & responsive mouse parallax when car has reached near center
+      if (!prefersReducedMotion && carRootGroup.children.length > 0) {
+        if (Math.abs(carRootGroup.position.x) < 0.3) {
+          // Fast and lively floating wave
+          const idleFloat = Math.sin(elapsedTime * 2.2) * 0.045;
+          carRootGroup.position.y = THREE.MathUtils.lerp(
+            carRootGroup.position.y,
+            idleFloat,
+            0.12
+          );
 
-        const targetRotY = -0.35 + mouseRef.current.x * 0.1;
-        const targetRotX = mouseRef.current.y * 0.03;
-        carRootGroup.rotation.y = THREE.MathUtils.lerp(
-          carRootGroup.rotation.y,
-          targetRotY,
-          0.06
-        );
-        carRootGroup.rotation.x = THREE.MathUtils.lerp(
-          carRootGroup.rotation.x,
-          targetRotX,
-          0.06
-        );
+          // Fast, silky smooth mouse reaction (0.12 lerp factor)
+          const targetRotY = -0.35 + mouseRef.current.x * 0.22;
+          const targetRotX = mouseRef.current.y * 0.07;
+          carRootGroup.rotation.y = THREE.MathUtils.lerp(
+            carRootGroup.rotation.y,
+            targetRotY,
+            0.12
+          );
+          carRootGroup.rotation.x = THREE.MathUtils.lerp(
+            carRootGroup.rotation.x,
+            targetRotX,
+            0.12
+          );
+        }
       }
 
       renderer.render(scene, camera);
@@ -275,7 +272,6 @@ export default function CarScene({ onModelReady, carGroupRef }: CarSceneProps) {
       ref={containerRef}
       className="relative w-full h-[360px] sm:h-[450px] lg:h-[560px] flex items-center justify-center overflow-hidden pointer-events-none select-none"
     >
-      {/* Loading Indicator without any background image */}
       {!loaded && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-10 transition-opacity duration-500">
           <div className="flex items-center gap-3 px-5 py-2.5 rounded-full bg-black/60 border border-emerald-500/30 text-xs text-emerald-400 font-semibold backdrop-blur-md shadow-lg shadow-emerald-950/30">
