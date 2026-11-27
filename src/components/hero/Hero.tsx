@@ -57,7 +57,7 @@ export default function Hero({ onSearch }: HeroProps) {
     }
 
     if (textRef.current) {
-      // Main headline and left content travel 3 seconds from left corner to center
+      // Main headline and left content travel 2.2 seconds from left corner to center
       const t1 = gsap.fromTo(
         textRef.current,
         {
@@ -67,7 +67,7 @@ export default function Hero({ onSearch }: HeroProps) {
         {
           opacity: 1,
           x: 0,
-          duration: 3.0,
+          duration: 2.2,
           ease: "power2.out",
         }
       );
@@ -84,7 +84,7 @@ export default function Hero({ onSearch }: HeroProps) {
           {
             opacity: 1,
             x: 0,
-            duration: 3.0,
+            duration: 2.2,
             ease: "power2.out",
           }
         );

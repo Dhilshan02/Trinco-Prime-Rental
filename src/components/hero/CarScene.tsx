@@ -76,7 +76,7 @@ export default function CarScene() {
     scene.add(rimLight);
 
     // 5. Contact Shadow Plane (Attached under the car)
-    const shadowGeo = new THREE.PlaneGeometry(8.5, 8.5);
+    const shadowGeo = new THREE.PlaneGeometry(10.5, 10.5);
     const canvas = document.createElement("canvas");
     canvas.width = 64;
     canvas.height = 64;
@@ -138,7 +138,8 @@ export default function CarScene() {
         const size = new THREE.Vector3();
         box.getSize(size);
         const maxAxis = Math.max(size.x, size.y, size.z);
-        const targetScale = maxAxis > 0 ? 5.2 / maxAxis : 1;
+        // Slightly increased size (~20% bigger) for bolder, more premium presence
+        const targetScale = maxAxis > 0 ? 6.2 / maxAxis : 1;
         model.scale.set(targetScale, targetScale, targetScale);
 
         const updatedBox = new THREE.Box3().setFromObject(model);
@@ -172,32 +173,37 @@ export default function CarScene() {
         setLoaded(true);
 
         if (!prefersReducedMotion) {
-          // Unified GSAP animation driving position, wheel spin & render
+          // Unified GSAP animation driving position, side-profile yaw turn, wheel spin & render
           const animObj = {
-            x: 6.2,
-            z: -4.2,
+            x: 7.5,
+            z: -3.5,
+            rotY: 1.25, // Side-facing shape as it zooms in
             wheelRot: 0,
           };
 
           carRootGroup.position.set(animObj.x, 0, animObj.z);
-          carRootGroup.rotation.set(0, -0.35, 0);
+          carRootGroup.rotation.set(0, animObj.rotY, 0);
 
           tween = gsap.to(animObj, {
             x: 0,
             z: 0,
-            wheelRot: Math.PI * 12, // 6 full wheel rotations
-            duration: 3.0,
+            rotY: -0.35, // Steers smoothly into front-3/4 angle in the center
+            wheelRot: Math.PI * 10,
+            duration: 2.2,
             ease: "power2.out",
             onUpdate: () => {
               if (isDisposed) return;
               carRootGroup.position.x = animObj.x;
               carRootGroup.position.z = animObj.z;
+              carRootGroup.rotation.y = animObj.rotY;
               for (let i = 0; i < wheelNodes.length; i++) {
                 wheelNodes[i].rotation.x = animObj.wheelRot;
               }
               safeRender();
             },
             onComplete: () => {
+              carRootGroup.position.set(0, 0, 0);
+              carRootGroup.rotation.set(0, -0.35, 0);
               safeRender();
             },
           });
