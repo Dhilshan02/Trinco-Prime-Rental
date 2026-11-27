@@ -29,6 +29,7 @@ interface HeroProps {
 
 export default function Hero({ onSearch }: HeroProps) {
   const textRef = useRef<HTMLDivElement>(null);
+  const hasStartedRef = useRef(false);
 
   // Dynamic tomorrow date helper
   const getTomorrowDate = () => {
@@ -43,7 +44,34 @@ export default function Hero({ onSearch }: HeroProps) {
   const [rentalDate, setRentalDate] = useState(getTomorrowDate());
   const [pickupTime, setPickupTime] = useState("09:00");
 
-  // Animate headline words "Drive Trincomalee in Prime Style" from left side corner to center over 3 seconds
+  const startTextAnimation = () => {
+    if (!textRef.current) return;
+    gsap.fromTo(
+      textRef.current,
+      {
+        opacity: 0,
+        x: -120,
+      },
+      {
+        opacity: 1,
+        x: 0,
+        duration: 1.5,
+        ease: "power2.out",
+      }
+    );
+  };
+
+  // Synchronized trigger: Letters and Car start at the EXACT same time without delay
+  const handleModelReady = (startCarAnimation: () => void) => {
+    if (hasStartedRef.current) return;
+    hasStartedRef.current = true;
+
+    // Both fire simultaneously at the exact same instant
+    startTextAnimation();
+    startCarAnimation();
+  };
+
+  // Pre-position text and safety fallback timer
   useEffect(() => {
     const prefersReducedMotion =
       typeof window !== "undefined" &&
@@ -51,50 +79,24 @@ export default function Hero({ onSearch }: HeroProps) {
 
     if (prefersReducedMotion) {
       if (textRef.current) {
-        gsap.set(textRef.current, { opacity: 1, x: 0, y: 0 });
+        gsap.set(textRef.current, { opacity: 1, x: 0 });
       }
       return;
     }
 
-    if (textRef.current) {
-      // Main headline and left content travel 3 seconds from left corner to center
-      const t1 = gsap.fromTo(
-        textRef.current,
-        {
-          opacity: 0,
-          x: -200,
-        },
-        {
-          opacity: 1,
-          x: 0,
-          duration: 3.0,
-          ease: "power2.out",
-        }
-      );
-
-      const headline = textRef.current.querySelector("h1");
-      let t2: gsap.core.Tween | null = null;
-      if (headline) {
-        t2 = gsap.fromTo(
-          headline,
-          {
-            opacity: 0,
-            x: -250,
-          },
-          {
-            opacity: 1,
-            x: 0,
-            duration: 3.0,
-            ease: "power2.out",
-          }
-        );
-      }
-
-      return () => {
-        t1.kill();
-        if (t2) t2.kill();
-      };
+    if (textRef.current && !hasStartedRef.current) {
+      gsap.set(textRef.current, { opacity: 0, x: -120 });
     }
+
+    // Fallback if 3D model takes longer than 700ms so text is never stuck
+    const timer = setTimeout(() => {
+      if (!hasStartedRef.current) {
+        hasStartedRef.current = true;
+        startTextAnimation();
+      }
+    }, 700);
+
+    return () => clearTimeout(timer);
   }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -122,15 +124,15 @@ export default function Hero({ onSearch }: HeroProps) {
 
       {/* Main Composition: Desktop Left ~45% (Text), Right ~55% (3D Car) */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center min-h-[460px] lg:min-h-[560px]">
-          {/* Left ~45%: Hero Text & Headline arriving from left corner in 3 seconds */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center min-h-[480px] lg:min-h-[620px]">
+          {/* Left ~45%: Hero Text & Headline arriving in sync with 3D Car */}
           <div className="lg:col-span-5 flex flex-col justify-center">
             <HeroText ref={textRef} />
           </div>
 
-          {/* Right ~55%: 3D Car arriving from right corner in 3 seconds */}
-          <div className="lg:col-span-7 relative w-full lg:-ml-6">
-            <CarScene />
+          {/* Right ~55%: 3D Car arriving in direct side shape right into center */}
+          <div className="lg:col-span-7 relative w-full lg:-ml-6 flex items-center justify-center">
+            <CarScene onModelReady={handleModelReady} />
           </div>
         </div>
 
