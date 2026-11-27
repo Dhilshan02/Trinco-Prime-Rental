@@ -6,11 +6,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import gsap from "gsap";
 
-interface CarSceneProps {
-  onModelReady?: (startCarAnimation: () => void) => void;
-}
-
-export default function CarScene({ onModelReady }: CarSceneProps) {
+export default function CarScene() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loaded, setLoaded] = useState(false);
   const [loadPercent, setLoadPercent] = useState<number>(0);
@@ -34,7 +30,7 @@ export default function CarScene({ onModelReady }: CarSceneProps) {
     const width = container.clientWidth || 600;
     const height = container.clientHeight || 450;
     const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 80);
-    camera.position.set(4.8, 1.7, 5.0);
+    camera.position.set(4.6, 1.6, 4.8);
     camera.lookAt(0, 0.45, 0);
 
     // 3. Ultra-smooth WebGL Renderer
@@ -103,20 +99,14 @@ export default function CarScene({ onModelReady }: CarSceneProps) {
     shadowPlane.rotation.x = -Math.PI / 2;
     shadowPlane.position.y = -0.01;
 
-    // 6. Car Root Group - Oriented in sleek side profile
+    // 6. Car Root Group - Oriented in sleek side profile right at center (0, 0, 0)
     const carRootGroup = new THREE.Group();
     carRootGroup.add(shadowPlane);
     scene.add(carRootGroup);
 
     // Side shape orientation: clean side profile facing leftwards into center
+    carRootGroup.position.set(0, 0, 0);
     carRootGroup.rotation.set(0, -0.22, 0);
-
-    if (prefersReducedMotion) {
-      carRootGroup.position.set(0, 0, 0);
-    } else {
-      // Start offscreen to the right
-      carRootGroup.position.set(9.0, 0, 0);
-    }
 
     const safeRender = () => {
       if (!isDisposed && renderer) {
@@ -176,47 +166,25 @@ export default function CarScene({ onModelReady }: CarSceneProps) {
 
         carRootGroup.add(model);
         setLoaded(true);
+        safeRender();
 
-        if (!prefersReducedMotion) {
-          // Direct side shape drive-in straight from right edge into center
-          const startCarAnimation = () => {
-            if (isDisposed) return;
-            const animObj = {
-              x: 9.0,
-              wheelRot: 0,
-            };
-
-            carRootGroup.position.set(animObj.x, 0, 0);
-            safeRender();
-
-            tween = gsap.to(animObj, {
-              x: 0,
-              wheelRot: Math.PI * 10, // Wheels rotate with forward drive
-              duration: 1.5,
-              ease: "power2.out",
-              onUpdate: () => {
-                if (isDisposed) return;
-                carRootGroup.position.x = animObj.x;
-                for (let i = 0; i < wheelNodes.length; i++) {
-                  wheelNodes[i].rotation.x = animObj.wheelRot;
-                }
-                safeRender();
-              },
-              onComplete: () => {
-                safeRender();
-              },
-            });
-          };
-
-          // Synchronize with hero text if callback provided, else auto-start
-          if (onModelReady) {
-            onModelReady(startCarAnimation);
-          } else {
-            startCarAnimation();
-          }
-        } else {
-          carRootGroup.position.set(0, 0, 0);
-          safeRender();
+        if (!prefersReducedMotion && wheelNodes.length > 0) {
+          const spinObj = { wheelRot: 0 };
+          tween = gsap.to(spinObj, {
+            wheelRot: Math.PI * 8,
+            duration: 1.4,
+            ease: "power2.out",
+            onUpdate: () => {
+              if (isDisposed) return;
+              for (let i = 0; i < wheelNodes.length; i++) {
+                wheelNodes[i].rotation.x = spinObj.wheelRot;
+              }
+              safeRender();
+            },
+            onComplete: () => {
+              safeRender();
+            },
+          });
         }
       },
       (xhr) => {
@@ -259,7 +227,7 @@ export default function CarScene({ onModelReady }: CarSceneProps) {
         renderer.dispose();
       } catch {}
     };
-  }, [onModelReady]);
+  }, []);
 
   return (
     <div

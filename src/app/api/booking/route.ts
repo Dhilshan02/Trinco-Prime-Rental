@@ -4,6 +4,8 @@ import { calculateBookingPrice } from "@/lib/pricing";
 import { sendBookingEmail } from "@/lib/email";
 import { checkRateLimit } from "@/lib/rate-limit";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   try {
     // 1. Rate limiting

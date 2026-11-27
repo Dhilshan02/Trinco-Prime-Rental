@@ -29,7 +29,7 @@ interface HeroProps {
 
 export default function Hero({ onSearch }: HeroProps) {
   const textRef = useRef<HTMLDivElement>(null);
-  const hasStartedRef = useRef(false);
+  const carWrapperRef = useRef<HTMLDivElement>(null);
 
   // Dynamic tomorrow date helper
   const getTomorrowDate = () => {
@@ -44,59 +44,53 @@ export default function Hero({ onSearch }: HeroProps) {
   const [rentalDate, setRentalDate] = useState(getTomorrowDate());
   const [pickupTime, setPickupTime] = useState("09:00");
 
-  const startTextAnimation = () => {
-    if (!textRef.current) return;
-    gsap.fromTo(
-      textRef.current,
-      {
-        opacity: 0,
-        x: -120,
-      },
-      {
-        opacity: 1,
-        x: 0,
-        duration: 1.5,
-        ease: "power2.out",
-      }
-    );
-  };
-
-  // Synchronized trigger: Letters and Car start at the EXACT same time without delay
-  const handleModelReady = (startCarAnimation: () => void) => {
-    if (hasStartedRef.current) return;
-    hasStartedRef.current = true;
-
-    // Both fire simultaneously at the exact same instant
-    startTextAnimation();
-    startCarAnimation();
-  };
-
-  // Pre-position text and safety fallback timer
+  // Starting at 0 seconds: Letters and 3D Car arrive at the exact same time smoothly
   useEffect(() => {
     const prefersReducedMotion =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     if (prefersReducedMotion) {
-      if (textRef.current) {
-        gsap.set(textRef.current, { opacity: 1, x: 0 });
-      }
+      if (textRef.current) gsap.set(textRef.current, { opacity: 1, x: 0 });
+      if (carWrapperRef.current) gsap.set(carWrapperRef.current, { opacity: 1, x: 0 });
       return;
     }
 
-    if (textRef.current && !hasStartedRef.current) {
-      gsap.set(textRef.current, { opacity: 0, x: -120 });
+    const tl = gsap.timeline({ defaults: { ease: "power2.out" } });
+
+    // 1. Letters smoothly glide from left corner to center starting at 0 seconds
+    if (textRef.current) {
+      tl.fromTo(
+        textRef.current,
+        {
+          opacity: 0,
+          x: -120,
+        },
+        {
+          opacity: 1,
+          x: 0,
+          duration: 1.4,
+        },
+        0 // 0s sharp
+      );
     }
 
-    // Fallback if 3D model takes longer than 700ms so text is never stuck
-    const timer = setTimeout(() => {
-      if (!hasStartedRef.current) {
-        hasStartedRef.current = true;
-        startTextAnimation();
-      }
-    }, 700);
-
-    return () => clearTimeout(timer);
+    // 2. 3D Car smoothly glides from right corner to center starting at 0 seconds
+    if (carWrapperRef.current) {
+      tl.fromTo(
+        carWrapperRef.current,
+        {
+          opacity: 0,
+          x: 140,
+        },
+        {
+          opacity: 1,
+          x: 0,
+          duration: 1.4,
+        },
+        0 // 0s sharp, exactly synchronized with letters!
+      );
+    }
   }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -125,14 +119,17 @@ export default function Hero({ onSearch }: HeroProps) {
       {/* Main Composition: Desktop Left ~45% (Text), Right ~55% (3D Car) */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center min-h-[480px] lg:min-h-[620px]">
-          {/* Left ~45%: Hero Text & Headline arriving in sync with 3D Car */}
+          {/* Left ~45%: Hero Text & Headline arriving at 0 seconds */}
           <div className="lg:col-span-5 flex flex-col justify-center">
             <HeroText ref={textRef} />
           </div>
 
-          {/* Right ~55%: 3D Car arriving in direct side shape right into center */}
-          <div className="lg:col-span-7 relative w-full lg:-ml-6 flex items-center justify-center">
-            <CarScene onModelReady={handleModelReady} />
+          {/* Right ~55%: 3D Car arriving in direct side shape right into center at 0 seconds */}
+          <div
+            ref={carWrapperRef}
+            className="lg:col-span-7 relative w-full lg:-ml-6 flex items-center justify-center"
+          >
+            <CarScene />
           </div>
         </div>
 
