@@ -36,7 +36,7 @@ export default function CarScene() {
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({
-        antialias: true, // Smooth crisp edges without pixelated lines
+        antialias: true, // Smooth edges without jagged pixelation
         alpha: true,
         powerPreference: "high-performance",
         precision: "highp",
@@ -62,7 +62,7 @@ export default function CarScene() {
       return;
     }
 
-    // 4. Lighting Rig
+    // 4. Studio Lighting Rig
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
     scene.add(ambientLight);
 
@@ -107,13 +107,13 @@ export default function CarScene() {
     carRootGroup.add(shadowPlane);
     scene.add(carRootGroup);
 
-    // Position initially in resting spot (or off-screen right corner if animating)
+    // Initial position: straight alignment along the driving lane (NO rotating/spinning!)
     if (prefersReducedMotion) {
       carRootGroup.position.set(0, 0, 0);
       carRootGroup.rotation.set(0, -0.35, 0);
     } else {
-      carRootGroup.position.set(9.0, 0.5, -2.0);
-      carRootGroup.rotation.set(0.04, 0.85, -0.03);
+      carRootGroup.position.set(6.2, 0, -4.2);
+      carRootGroup.rotation.set(0, -0.35, 0);
     }
 
     // 7. Load GLTF with Draco
@@ -143,8 +143,18 @@ export default function CarScene() {
         model.position.y = -updatedBox.min.y;
         model.position.z = -center.z;
 
-        // Enhance metallic/glossy automotive finish
+        // Collect all 4 wheel objects so tires spin as the car drives in
+        const wheelNodes: THREE.Object3D[] = [];
         model.traverse((child) => {
+          if (
+            child.name === "WHEEL_LF" ||
+            child.name === "WHEEL_RF" ||
+            child.name === "WHEEL_LR" ||
+            child.name === "WHEEL_RR"
+          ) {
+            wheelNodes.push(child);
+          }
+
           if ((child as THREE.Mesh).isMesh) {
             const m = child as THREE.Mesh;
             m.castShadow = false;
@@ -165,13 +175,13 @@ export default function CarScene() {
         carRootGroup.add(model);
         setLoaded(true);
 
-        // Drive-in 3D animation: Car drives in from right road and smoothly parks in hero position
+        // Drive-in Straight Animation with Spinning Wheels (No body twisting/spinning!)
         if (!prefersReducedMotion) {
-          // Start position: on the right, angled towards the road
-          carRootGroup.position.set(9.0, 0.5, -2.0);
-          carRootGroup.rotation.set(0.04, 0.85, -0.03);
+          // 1. Position car straight along its driving track, facing its destination
+          carRootGroup.position.set(6.2, 0, -4.2);
+          carRootGroup.rotation.set(0, -0.35, 0); // Steady fixed angle!
 
-          // 3-second drive in and park smoothly
+          // 2. Drive straight into hero spot (3.0 seconds straight drive)
           gsap.to(carRootGroup.position, {
             x: 0,
             y: 0,
@@ -180,12 +190,17 @@ export default function CarScene() {
             ease: "power2.out",
           });
 
-          gsap.to(carRootGroup.rotation, {
-            x: 0,
-            y: -0.35,
-            z: 0,
+          // 3. Spin all tires continuously while driving forward, smoothly decelerating to a stop
+          const wheelMotion = { rotation: 0 };
+          gsap.to(wheelMotion, {
+            rotation: Math.PI * 12, // 6 full rotations of wheels
             duration: 3.0,
             ease: "power2.out",
+            onUpdate: () => {
+              wheelNodes.forEach((wheel) => {
+                wheel.rotation.x = wheelMotion.rotation;
+              });
+            },
           });
         }
       },
@@ -243,7 +258,7 @@ export default function CarScene() {
 
       const elapsedTime = clock.getElapsedTime();
 
-      // Only apply idle floating & responsive mouse parallax when car is parked in hero spot
+      // Only apply subtle idle floating & responsive mouse parallax when car has parked in hero spot
       if (!prefersReducedMotion && carRootGroup.children.length > 1) {
         if (Math.abs(carRootGroup.position.x) < 0.25) {
           const idleFloat = Math.sin(elapsedTime * 2.0) * 0.04;
