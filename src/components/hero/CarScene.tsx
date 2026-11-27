@@ -26,12 +26,12 @@ export default function CarScene() {
     // 1. Scene setup
     const scene = new THREE.Scene();
 
-    // 2. Camera setup - framed close and bold for prominent car size
+    // 2. Camera setup
     const width = container.clientWidth || 600;
     const height = container.clientHeight || 450;
-    const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 80);
-    camera.position.set(4.6, 1.6, 4.8);
-    camera.lookAt(0, 0.45, 0);
+    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 80);
+    camera.position.set(5.5, 2.2, 5.5);
+    camera.lookAt(0, 0.8, 0);
 
     // 3. Ultra-smooth WebGL Renderer
     let renderer: THREE.WebGLRenderer;
@@ -67,24 +67,24 @@ export default function CarScene() {
     const hemiLight = new THREE.HemisphereLight(0xffffff, 0x111827, 2.0);
     scene.add(hemiLight);
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 2.0);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
     keyLight.position.set(8, 12, 6);
     scene.add(keyLight);
 
-    const rimLight = new THREE.DirectionalLight(0x00e599, 1.0);
+    const rimLight = new THREE.DirectionalLight(0x00e599, 0.8);
     rimLight.position.set(-6, 5, -4);
     scene.add(rimLight);
 
     // 5. Contact Shadow Plane (Attached under the car)
-    const shadowGeo = new THREE.PlaneGeometry(12, 12);
+    const shadowGeo = new THREE.PlaneGeometry(8.5, 8.5);
     const canvas = document.createElement("canvas");
     canvas.width = 64;
     canvas.height = 64;
     const ctx = canvas.getContext("2d");
     if (ctx) {
       const grad = ctx.createRadialGradient(32, 32, 6, 32, 32, 30);
-      grad.addColorStop(0, "rgba(0, 0, 0, 0.85)");
-      grad.addColorStop(0.5, "rgba(0, 0, 0, 0.35)");
+      grad.addColorStop(0, "rgba(0, 0, 0, 0.8)");
+      grad.addColorStop(0.5, "rgba(0, 0, 0, 0.3)");
       grad.addColorStop(1, "rgba(0, 0, 0, 0)");
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, 64, 64);
@@ -99,14 +99,19 @@ export default function CarScene() {
     shadowPlane.rotation.x = -Math.PI / 2;
     shadowPlane.position.y = -0.01;
 
-    // 6. Car Root Group - Oriented in sleek side profile right at center (0, 0, 0)
+    // 6. Car Root Group
     const carRootGroup = new THREE.Group();
     carRootGroup.add(shadowPlane);
     scene.add(carRootGroup);
 
-    // Side shape orientation: clean side profile facing leftwards into center
-    carRootGroup.position.set(0, 0, 0);
-    carRootGroup.rotation.set(0, -0.22, 0);
+    // Fixed Hero Parking Angle: NO rotating, NO cursor parallax!
+    carRootGroup.rotation.set(0, -0.35, 0);
+
+    if (prefersReducedMotion) {
+      carRootGroup.position.set(0, 0, 0);
+    } else {
+      carRootGroup.position.set(6.2, 0, -4.2);
+    }
 
     const safeRender = () => {
       if (!isDisposed && renderer) {
@@ -129,12 +134,11 @@ export default function CarScene() {
 
         const model = gltf.scene;
 
-        // Enlarged car size per user request (7.5 scale factor, ~45% larger)
         const box = new THREE.Box3().setFromObject(model);
         const size = new THREE.Vector3();
         box.getSize(size);
         const maxAxis = Math.max(size.x, size.y, size.z);
-        const targetScale = maxAxis > 0 ? 7.5 / maxAxis : 1;
+        const targetScale = maxAxis > 0 ? 5.2 / maxAxis : 1;
         model.scale.set(targetScale, targetScale, targetScale);
 
         const updatedBox = new THREE.Box3().setFromObject(model);
@@ -166,18 +170,30 @@ export default function CarScene() {
 
         carRootGroup.add(model);
         setLoaded(true);
-        safeRender();
 
-        if (!prefersReducedMotion && wheelNodes.length > 0) {
-          const spinObj = { wheelRot: 0 };
-          tween = gsap.to(spinObj, {
-            wheelRot: Math.PI * 8,
-            duration: 1.4,
+        if (!prefersReducedMotion) {
+          // Unified GSAP animation driving position, wheel spin & render
+          const animObj = {
+            x: 6.2,
+            z: -4.2,
+            wheelRot: 0,
+          };
+
+          carRootGroup.position.set(animObj.x, 0, animObj.z);
+          carRootGroup.rotation.set(0, -0.35, 0);
+
+          tween = gsap.to(animObj, {
+            x: 0,
+            z: 0,
+            wheelRot: Math.PI * 12, // 6 full wheel rotations
+            duration: 3.0,
             ease: "power2.out",
             onUpdate: () => {
               if (isDisposed) return;
+              carRootGroup.position.x = animObj.x;
+              carRootGroup.position.z = animObj.z;
               for (let i = 0; i < wheelNodes.length; i++) {
-                wheelNodes[i].rotation.x = spinObj.wheelRot;
+                wheelNodes[i].rotation.x = animObj.wheelRot;
               }
               safeRender();
             },
@@ -185,6 +201,10 @@ export default function CarScene() {
               safeRender();
             },
           });
+        } else {
+          carRootGroup.position.set(0, 0, 0);
+          carRootGroup.rotation.set(0, -0.35, 0);
+          safeRender();
         }
       },
       (xhr) => {
@@ -232,7 +252,7 @@ export default function CarScene() {
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-[400px] sm:h-[480px] lg:h-[620px] flex items-center justify-center overflow-visible pointer-events-none select-none"
+      className="relative w-full h-[360px] sm:h-[450px] lg:h-[560px] flex items-center justify-center overflow-visible pointer-events-none select-none"
     >
       {/* Minimal Loading Badge */}
       {!loaded && !hasError && (
