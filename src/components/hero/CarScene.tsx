@@ -8,8 +8,6 @@ import gsap from "gsap";
 
 export default function CarScene() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [loaded, setLoaded] = useState(false);
-  const [loadPercent, setLoadPercent] = useState<number>(0);
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
@@ -170,7 +168,6 @@ export default function CarScene() {
         });
 
         carRootGroup.add(model);
-        setLoaded(true);
 
         if (!prefersReducedMotion) {
           // Unified GSAP animation driving position, side-profile yaw turn, wheel spin & render
@@ -213,12 +210,7 @@ export default function CarScene() {
           safeRender();
         }
       },
-      (xhr) => {
-        if (!isDisposed && xhr.lengthComputable && xhr.total > 0) {
-          const pct = Math.round((xhr.loaded / xhr.total) * 100);
-          setLoadPercent(pct);
-        }
-      },
+      undefined,
       (err) => {
         if (!isDisposed) {
           console.warn("Could not load /models/vezel_compressed.glb:", err);
@@ -259,20 +251,6 @@ export default function CarScene() {
     <div
       ref={containerRef}
       className="relative w-full h-[360px] sm:h-[450px] lg:h-[560px] flex items-center justify-center overflow-visible pointer-events-none select-none"
-    >
-      {/* Minimal Loading Badge */}
-      {!loaded && !hasError && (
-        <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none transition-opacity duration-300">
-          <div className="flex items-center gap-3 px-5 py-2.5 rounded-full bg-[#0f141c]/95 border border-emerald-500/30 text-xs text-emerald-400 font-semibold shadow-lg shadow-black/50">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-            <span>
-              {loadPercent > 0
-                ? `Loading 3D Car... ${loadPercent}%`
-                : "Loading 3D Experience..."}
-            </span>
-          </div>
-        </div>
-      )}
-    </div>
+    />
   );
 }
