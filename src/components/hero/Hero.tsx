@@ -10,7 +10,7 @@ const CarScene = dynamic(() => import("./CarScene"), {
   ssr: false,
   loading: () => (
     <div className="relative w-full h-[360px] sm:h-[450px] lg:h-[560px] flex items-center justify-center">
-      <div className="flex items-center gap-3 px-5 py-2.5 rounded-full bg-black/60 border border-emerald-500/30 text-xs text-emerald-400 font-semibold backdrop-blur-md shadow-lg shadow-emerald-950/30">
+      <div className="flex items-center gap-3 px-5 py-2.5 rounded-full bg-[#0f141c]/95 border border-emerald-500/30 text-xs text-emerald-400 font-semibold shadow-lg shadow-black/50">
         <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
         <span>Loading 3D Experience...</span>
       </div>
@@ -132,7 +132,7 @@ export default function Hero({ onSearch }: HeroProps) {
         <div className="mt-8 lg:mt-12 max-w-5xl mx-auto">
           <form
             onSubmit={handleSearchSubmit}
-            className="p-3 sm:p-4 rounded-2xl bg-[#0f141c]/90 border border-white/10 backdrop-blur-xl shadow-2xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-center"
+            className="p-3 sm:p-4 rounded-2xl bg-[#0f141c]/95 border border-white/10 shadow-2xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-center"
           >
             {/* Vehicle Type */}
             <div className="flex flex-col px-3 py-2 rounded-xl bg-white/5 border border-white/5 hover:border-white/15 transition-colors">
