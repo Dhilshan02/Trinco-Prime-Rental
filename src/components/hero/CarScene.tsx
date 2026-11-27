@@ -11,8 +11,6 @@ export default function CarScene() {
   const [loaded, setLoaded] = useState(false);
   const [loadPercent, setLoadPercent] = useState<number>(0);
   const [hasError, setHasError] = useState(false);
-  const mouseRef = useRef({ x: 0, y: 0 });
-  const isVisibleRef = useRef(true);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -30,33 +28,30 @@ export default function CarScene() {
     const height = container.clientHeight || 450;
     const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 80);
     camera.position.set(5.5, 2.2, 5.5);
+    camera.lookAt(0, 0.8, 0);
 
-    // 3. High-Performance, Ultra-Smooth WebGL Renderer
+    // 3. High-Performance WebGL Renderer (No mouse tracking, purely cinematic)
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({
-        antialias: false, // Disabling heavy 4x MSAA boosts FPS by 300% on laptop/integrated GPUs
+        antialias: false,
         alpha: true,
         powerPreference: "high-performance",
-        precision: "mediump", // 2x faster shader execution
-        stencil: false,
+        precision: "mediump",
         depth: true,
       });
       renderer.setSize(width, height);
-      // Clamp pixelRatio to 1.0 for instant 60fps responsiveness with zero stutter
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0));
       renderer.shadowMap.enabled = false;
 
-      // GPU compositing layer promotion
       const canvasEl = renderer.domElement;
       canvasEl.style.position = "absolute";
       canvasEl.style.top = "0";
       canvasEl.style.left = "0";
       canvasEl.style.width = "100%";
       canvasEl.style.height = "100%";
-      canvasEl.style.pointerEvents = "auto";
+      canvasEl.style.pointerEvents = "none"; // Clicks pass right through
       canvasEl.style.transform = "translateZ(0)";
-      canvasEl.style.willChange = "transform";
 
       container.appendChild(canvasEl);
     } catch (e) {
@@ -65,25 +60,22 @@ export default function CarScene() {
       return;
     }
 
-    // 4. Lightweight, Highly Optimized Lighting (Hemisphere + Single Key Light)
-    // HemisphereLight computes in vertex shader (0 fragment ALU overhead!)
+    // 4. Lightweight Studio Lighting
     const hemiLight = new THREE.HemisphereLight(0xffffff, 0x111827, 2.0);
     scene.add(hemiLight);
 
-    // Single Key Directional Light for crisp metallic highlights
     const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
     keyLight.position.set(8, 12, 6);
     scene.add(keyLight);
 
-    // Subtle emerald rim light
     const rimLight = new THREE.DirectionalLight(0x00e599, 0.8);
     rimLight.position.set(-6, 5, -4);
     scene.add(rimLight);
 
-    // 5. Lightweight Contact Shadow Plane
+    // 5. Contact Shadow Plane (Attached under the car)
     const shadowGeo = new THREE.PlaneGeometry(8.5, 8.5);
     const canvas = document.createElement("canvas");
-    canvas.width = 64; // Compact 64x64 texture for zero memory bandwidth
+    canvas.width = 64;
     canvas.height = 64;
     const ctx = canvas.getContext("2d");
     if (ctx) {
@@ -109,14 +101,29 @@ export default function CarScene() {
     carRootGroup.add(shadowPlane);
     scene.add(carRootGroup);
 
-    // Start position: straight driving path (Zero body spinning!)
+    // Fixed Hero Parking Angle: NO rotating, NO cursor parallax!
+    carRootGroup.rotation.set(0, -0.35, 0);
+
     if (prefersReducedMotion) {
       carRootGroup.position.set(0, 0, 0);
-      carRootGroup.rotation.set(0, -0.35, 0);
     } else {
       carRootGroup.position.set(6.2, 0, -4.2);
-      carRootGroup.rotation.set(0, -0.35, 0);
     }
+
+    // Render loop controller: Only renders while driving in, then rests with 0% CPU!
+    let animId: number | null = null;
+    let isDriving = true;
+
+    const renderScene = () => {
+      renderer.render(scene, camera);
+    };
+
+    const animateLoop = () => {
+      renderScene();
+      if (isDriving) {
+        animId = requestAnimationFrame(animateLoop);
+      }
+    };
 
     // 7. Load GLTF with Draco
     const dracoLoader = new DRACOLoader();
@@ -145,7 +152,7 @@ export default function CarScene() {
         model.position.y = -updatedBox.min.y;
         model.position.z = -center.z;
 
-        // Collect the 4 wheels and optimize all 225 meshes for silky smooth FPS
+        // Collect wheels for spinning animation
         const wheelNodes: THREE.Object3D[] = [];
         model.traverse((child) => {
           if (
@@ -168,24 +175,32 @@ export default function CarScene() {
         carRootGroup.add(model);
         setLoaded(true);
 
-        // Drive-in Straight Animation with Spinning Wheels (Zero body twisting/spinning!)
         if (!prefersReducedMotion) {
+          // Start render loop during entrance drive
+          isDriving = true;
+          animateLoop();
+
+          // 1. Drive straight into hero spot (3.0 seconds)
           carRootGroup.position.set(6.2, 0, -4.2);
           carRootGroup.rotation.set(0, -0.35, 0);
 
-          // 1. Drive straight into hero spot (3.0 seconds)
           gsap.to(carRootGroup.position, {
             x: 0,
             y: 0,
             z: 0,
             duration: 3.0,
             ease: "power2.out",
+            onComplete: () => {
+              // Car has parked! Stop render loop completely for 0% CPU usage!
+              isDriving = false;
+              renderScene();
+            },
           });
 
-          // 2. Spin all tires continuously while driving forward, smoothly decelerating to a stop
+          // 2. Spin all tires continuously while driving, then stop
           const wheelMotion = { rotation: 0 };
           gsap.to(wheelMotion, {
-            rotation: Math.PI * 12,
+            rotation: Math.PI * 12, // 6 full wheel rotations
             duration: 3.0,
             ease: "power2.out",
             onUpdate: () => {
@@ -194,6 +209,10 @@ export default function CarScene() {
               }
             },
           });
+        } else {
+          carRootGroup.position.set(0, 0, 0);
+          carRootGroup.rotation.set(0, -0.35, 0);
+          renderScene();
         }
       },
       (xhr) => {
@@ -208,23 +227,7 @@ export default function CarScene() {
       }
     );
 
-    camera.lookAt(0, 0.8, 0);
-
-    // 8. Throttled Mouse movement tracking (saves CPU cycles)
-    let mouseQueued = false;
-    const onMouseMove = (e: MouseEvent) => {
-      if (!mouseQueued) {
-        mouseQueued = true;
-        requestAnimationFrame(() => {
-          mouseRef.current.x = (e.clientX / window.innerWidth) * 2 - 1;
-          mouseRef.current.y = (e.clientY / window.innerHeight) * 2 - 1;
-          mouseQueued = false;
-        });
-      }
-    };
-    window.addEventListener("mousemove", onMouseMove, { passive: true });
-
-    // 9. Resize handler
+    // 8. Resize handler
     const onResize = () => {
       if (!container) return;
       const w = container.clientWidth;
@@ -232,64 +235,14 @@ export default function CarScene() {
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
+      renderScene();
     };
     window.addEventListener("resize", onResize, { passive: true });
 
-    // 10. Pause rendering when scrolled out of view (saves 100% GPU when reading below)
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          isVisibleRef.current = entry.isIntersecting;
-        });
-      },
-      { threshold: 0.05 }
-    );
-    observer.observe(container);
-
-    // 11. Butter-smooth unthrottled render loop
-    let animId: number;
-    const clock = new THREE.Clock();
-
-    const animate = () => {
-      animId = requestAnimationFrame(animate);
-
-      if (!isVisibleRef.current) return;
-
-      const elapsedTime = clock.getElapsedTime();
-
-      // Only apply gentle floating & responsive mouse parallax when car has parked in hero spot
-      if (!prefersReducedMotion && carRootGroup.children.length > 1) {
-        if (Math.abs(carRootGroup.position.x) < 0.25) {
-          const idleFloat = Math.sin(elapsedTime * 1.8) * 0.035;
-          carRootGroup.position.y = THREE.MathUtils.lerp(
-            carRootGroup.position.y,
-            idleFloat,
-            0.1
-          );
-
-          const targetRotY = -0.35 + mouseRef.current.x * 0.18;
-          const targetRotX = mouseRef.current.y * 0.05;
-          carRootGroup.rotation.y = THREE.MathUtils.lerp(
-            carRootGroup.rotation.y,
-            targetRotY,
-            0.1
-          );
-          carRootGroup.rotation.x = THREE.MathUtils.lerp(
-            carRootGroup.rotation.x,
-            targetRotX,
-            0.1
-          );
-        }
-      }
-
-      renderer.render(scene, camera);
-    };
-    animId = requestAnimationFrame(animate);
-
     return () => {
-      cancelAnimationFrame(animId);
-      observer.disconnect();
-      window.removeEventListener("mousemove", onMouseMove);
+      if (animId !== null) {
+        cancelAnimationFrame(animId);
+      }
       window.removeEventListener("resize", onResize);
       if (renderer.domElement && container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
@@ -304,7 +257,7 @@ export default function CarScene() {
       ref={containerRef}
       className="relative w-full h-[360px] sm:h-[450px] lg:h-[560px] flex items-center justify-center overflow-visible pointer-events-none select-none"
     >
-      {/* Sleek Minimal Loading Badge (No backdrop blur for ultra-fast rendering) */}
+      {/* Sleek Minimal Loading Badge */}
       {!loaded && (
         <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none transition-opacity duration-300">
           <div className="flex items-center gap-3 px-5 py-2.5 rounded-full bg-[#0f141c]/95 border border-emerald-500/30 text-xs text-emerald-400 font-semibold shadow-lg shadow-black/50">
